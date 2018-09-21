@@ -1,13 +1,9 @@
 Class Functor (F : Type -> Type) :=
   { fmap : forall {A B : Type}, (A -> B) -> F A -> F B}.
 
-Inductive Const (A B : Type) : Type :=
-  mkConst : A -> Const A B.
-
-Definition getConst {A B : Type} (c : Const A B) : A :=
-  match c with
-  | mkConst _ _ x => x
-  end.
+(* The Conts datatype *)
+Record Const (A B: Type) :=
+  mkConst {getConst : A}.
 
 Instance Const_Functor {C : Type} : Functor (Const C) :=
   {
@@ -25,4 +21,4 @@ Check run.
 (* dependency :: Task Functor k v -> k *)
 (* dependency task = getConst $ run task Const *)
 Definition dependency {K V: Type} (task : Task Functor K V) : K :=
-  getConst ((run Functor K V task (Const K)) (mkConst K V)).
+  getConst K V ((run Functor K V task (Const K)) (mkConst K V)).
