@@ -1,6 +1,6 @@
 Require Import Data.Functor.
 Require Import Data.Functor.Const.
-Require Import Task.
+Require Import Build.Task.
 
 (* -- | Find the dependency of a functorial task. *)
 (* dependency :: Task Functor k v -> k *)

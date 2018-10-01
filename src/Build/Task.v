@@ -1,4 +1,5 @@
 Require Import Data.Maybe.
+Require Import Data.Functor.
 
 (* The Task abstraction *)
 Record Task (C : (Type -> Type) -> Type) (K V : Type) :=
