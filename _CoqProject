@@ -2,9 +2,13 @@
 -arg -type-in-type
 src/Data/Maybe.v
 src/Data/Functor.v
+src/Control/Applicative.v
+src/Control/Monad.v
+src/Control/Monad/State.v
 src/Data/Functor/Const.v
 src/Eq.v
 src/Build.v
 src/Build/Task.v
 src/Build/Task/Functor.v
 src/Build/Store.v
+src/Build/System.v
