@@ -67,17 +67,28 @@ Instance eq_nat : Eq nat := { eqb := eq_nat_impl}.
 (* Next Obligation. *)
 (* Proof. *)
 
-Program Fixpoint busyFetch (task : Task) (k : nat)
+Lemma zgtz : 0 > 0 -> False.
+Proof.
+  omega.
+Qed.
+
+Definition pred_strong2 (s : {n : nat | n > 0}) : nat :=
+  match s with
+    | exist _ O pf => match zgtz pf with end
+    | exist _ (S n') _ => n'
+  end.
+
+Program Fixpoint busyFetch (task : Task) (s : {k : nat | k < key task})
   {measure (key task)}:
   ST unit :=
-  let t := ((run task) (busyFetch task)) k in
-  match t with
-  | Nothing  => gets (getValue k)
-  | Just act =>
+  match s with
+  | O      => undefined
+  | (S k') =>
+    let t := ((run task) (busyFetch task (proj2_sig k'))) s in
+    match t with
+    | Nothing  => gets (getValue (S k'))
+    | Just act =>
       act >>=
-      fun v => modify (putValue k v) >> pure v
+          fun v => modify (putValue (S k') v) >> pure v
+    end
   end.
-Next Obligation.
-Proof.
-  replace (S x) with x.
-  replace (S (key1 V task)) with (key1 V task).

@@ -14,3 +14,5 @@ Class Applicative (f : Type -> Type) := {
 
 Arguments pure {f _ _} _.
 Arguments ap   {f _ _ _} _ x.
+
+Infix "<*>" := ap (at level 28, left associativity).

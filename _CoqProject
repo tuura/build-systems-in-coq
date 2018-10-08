@@ -2,6 +2,7 @@
 -arg -type-in-type
 src/Data/Maybe.v
 src/Data/Functor.v
+src/Data/Proxy.v
 src/Control/Applicative.v
 src/Control/Monad.v
 src/Control/Monad/State.v

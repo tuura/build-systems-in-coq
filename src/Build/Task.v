@@ -21,9 +21,11 @@ Require Import Build.Store.
 
 Definition ST := State (Store unit nat unit).
 
+(* Record Task := *)
+(*   mkTask { key : nat *)
+(*            ; run (k : nat) : ((k, (k < key)) ->  unit) -> *)
+(*                              Maybe (ST unit)}. *)
+
 Record Task :=
   mkTask { key : nat
-         ; run (k : nat) : ((k, (k < key)) ->  unit) ->
-                                            Maybe (ST unit)}.
-
-Check run.
+         ; run  : ({k | k < key} -> ST unit) -> Maybe (ST unit)}.
