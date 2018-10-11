@@ -1,4 +1,4 @@
-Require Export Eq.
+Require Import Prelude.
 
 (* An abstract datatype for a key/value store with build information of type @i@. *)
 Record Store (I K V : Type) :=
