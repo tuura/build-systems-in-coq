@@ -201,40 +201,85 @@ seek feedback and collaboration from the Coq community.
 
 \section{The key abstractions in Coq}
 
-\begin{figure*}[b]
+\begin{figure*}[t]
 \begin{minted}{coq}
-(* Task describes how to build values of type V from keys of type K *)
-Inductive Task (C : (Type -> Type) -> Type) (K : Type) (V : Type) := {
-  run : forall {F} `{CF: C F}, K -> Maybe ((K -> F V) -> F V)}.
-
 (* An abstract store containing a key/value map and persistent build information *)
 Record Store (I K V : Type) := mkStore { info : I; values : K -> V}.
 
-Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
-  Tasks C K V -> K -> Store I K V -> Store I K V.
-
-Record Store (I K V : Type) :=
-  mkStore { info : I
-          ; values : K -> V
+(* Task describes how to build values of type V from keys of type K *)
+Record Task (C : (Type -> Type) -> Type) (K : Type) (V : Type) := {
+  key : K;
+  run : forall {F} `{CF: C F}, Maybe ((K -> F V) -> F V)}.
 
 (* Given a task description, a target key, and a store, the build
-system returns a new store in which the value of the target key is up to date. *)
+ * system returns a new store in which the value of the target key is up to date. *)
+Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
+  Task C K V -> K -> Store I K V -> Store I K V.
+
+(* A total Task restricts the key of the dependencies (if any) to be strictly
+* smaller than the top-level one *)
 Record TotalTask (C : (Type -> Type) -> Type) := {
   key : nat;
-  run : forall {F} `{CF: C F}, nat -> Maybe ((Fin.t key -> F nat) -> F nat)}
+  run : forall {F} `{CF: C F}, Maybe ((Fin.t key -> F nat) -> F nat)}
+
+(* Given a total task description, a target key, and a store, the total build
+ * system returns a new store and is guarantied to terminates. *)
+Definition TotalBuild (C : (Type -> Type) -> Type) (I K V : Type) :=
+  TotalTask C K V -> K -> Store I K V -> Store I K V.
 \end{minted}
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
 \end{figure*}
 
+\subsection{Components of a build system} 
+
+\paragraph{Keys, values and the store.}
+Build systems are essentialy functions that transform a key/value store to
+make it up to date. In software build systems the store is the file system,
+the keys are filenames, and the values are file contents. In Excel, the store is
+the worksheets, the keys are cell names (such as A1) and the values are numbers,
+strings, etc., displayed as the cell contents.
+
+\paragraph{Input, output and intermediate values.}
+Some values must be provided by
+the user as \emph{input}. For example, \cmd{main.c} can be edited by the user
+who relies on the build system to compile it into \cmd{main.o} and subsequently
+\cmd{main.exe}. End build products, such as \cmd{main.exe}, are \emph{output}
+values. All other values (in this case \cmd{main.o}) are \emph{intermediate};
+they are not interesting for the user but are produced in the process of turning
+inputs into outputs.
+
+\paragraph{Persistent build information.} As well as the key/value mapping, the
+store also contains information maintained by the build system itself, which
+persists from one invocation of the build system to the next -- its ``memory''.
+
+\paragraph{Task description.} Any build system requires the user to specify how
+to compute the new value for one key, using the (up to date) values of its
+dependencies. We call this specification the \emph{task description}. For
+example, in \Excel, the formulae of the spreadsheet constitute the task
+description; in \Make the rules in the makefile are the task description.
+
+\paragraph{Build system.} A \emph{build system} takes a task description, a
+\emph{target} key, and a store, and returns a new store in which the target key
+and all its dependencies have an up to date value.
+
 \subsection{The Task abstraction}
 
-In the Build Systems \`a la Carte framework, the build scenarios such as
-Makefiles or Excel spreadsheets are abstracted as \hs{Task}'s (see the top of
-the figure~\ref{fig-defs}). A \hs{Task}
+In the Build Systems \`a la Carte framework, the build scenarios are abstracted
+as \hs{Task}'s (see the figure~\ref{fig-defs}). A \hs{Task}
 describes how to build a value of type \hs{V} from a key of type \hs{K}.
-The argument \hs{C} here emulates Haskell's kind \hs{Constraint}. \hs{C} may be
+The argument \hs{C} here emulates Haskell's kind \hs{Constraint} and can be
 instantiated with concrete typeclass constraints such as \hs{Functor},
-\hs{Applicative} or \hs{Monad}. The \hs{run} field is parametrised by a
+\hs{Applicative} or \hs{Monad}.
+
+Omiting the type variable bindings, the task description is a~\emph{target key}
+and a task~\emph{semantics}. If the target key is associated to an~\emph{input}
+value --- there is~\coq{Nothing} to be done. Otherwise, the~\coq{run} function
+contains the~\coq{fetch} callback of type \coq{K -> F V}, which, given a key,
+produces a value and possibly couses some side-effects. These side effects are
+of immense value and to have flexible control over them is the exact reason to
+keep \coq{F} polymorphic.
+
+The \hs{run} field is parametrised by a
 polymorphic type constructor \hs{F} which is restricted by the constraint \hs{C}.
 The polymorphic \hs{F} is the corner stone of the Build Systems \`a la Carte
 framework: given a~\emph{single} task description, we want to explore~\emph{many}
@@ -243,8 +288,6 @@ type constructors \hs{F}. In the number of cases, \hs{F} will be instantiated
 with \hs{State s} for some build-state \hs{s}, or it may become the
 \hs{Const K} datatype which allows to statically calculate the dependencies of certain
 types of \hs{Task}'s.
-
-\subsection{The Store}
 
 \subsection{The Build abstraction}
 
