@@ -102,7 +102,7 @@
 \begin{document}
 
 %% Title information
-\title[]{A Coq Formalisation of Build Systems \`a la Carte}         %% [Short Title] is optional;
+\title[]{A Coq Formalisation of Build Systems}         %% [Short Title] is optional;
                                         %% when present, will be used in
                                         %% header instead of Full Title.
 % \titlenote{with title note}             %% \titlenote is optional;
@@ -145,7 +145,21 @@
 %% Note: \begin{abstract}...\end{abstract} environment must come
 %% before \maketitle command
 \begin{abstract}
-Text of abstract \ldots.
+The gene pool of software build systems and various incremental computation
+frameworks is becoming richer every day. These complex build systems and
+frameworks use subtle algorithms and are mission-critical, yet to the best of
+our knowledge there is no machine-checked validation of their correctness.
+
+A recent ICFP paper ``Build Systems \`a la Carte'' presented a definition of
+correctness for build systems, and modelled several major build systems in
+Haskell, without exhibiting any proof of their correctness. We build on this
+work by translating the Haskell abstractions to Coq and making the necessary
+adjustments to capture the notion of build task acyclicity, which is essential
+for proving termination.
+
+This is an experience report on on-going work which is very far from being
+complete. We present our motivation and key abstractions developed so far, and
+seek feedback and collaboration from the Coq community.
 \end{abstract}
 
 
