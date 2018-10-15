@@ -204,28 +204,30 @@ seek feedback and collaboration from the Coq community.
 \begin{figure*}[t]
 \begin{minted}{coq}
 (* An abstract store containing a key/value map and persistent build information *)
-Record Store (I K V : Type) := mkStore { info : I; values : K -> V}.
+Inductive Store (I K V : Type) := mkStore { info : I; values : K -> V}.
 
 (* Task describes how to build values of type V from keys of type K *)
-Record Task (C : (Type -> Type) -> Type) (K : Type) (V : Type) := {
-  key : K;
-  run : forall {F} `{CF: C F}, Maybe ((K -> F V) -> F V)}.
+Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
+  run : forall {F} `{CF: C F}, (K -> F V) -> F V}.
+
+Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
+  K -> Maybe (Task C K V).
 
 (* Given a task description, a target key, and a store, the build
  * system returns a new store in which the value of the target key is up to date. *)
 Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
-  Task C K V -> K -> Store I K V -> Store I K V.
+  Tasks C K V -> K -> Store I K V -> Store I K V.
 
-(* A total Task restricts the key of the dependencies (if any) to be strictly
-* smaller than the top-level one *)
-Record TotalTask (C : (Type -> Type) -> Type) := {
-  key : nat;
-  run : forall {F} `{CF: C F}, Maybe ((Fin.t key -> F nat) -> F nat)}
+(* A total Tasks restrict the key of the dependencies to be strictly
+* smaller than the top-level one. In this abstract we will fix the type of
+* keys of total tasks to natural numbers for clarity.*)
+Definition TotalTasks (C : (Type -> Type) -> Type) :=
+  forall (k : nat), Maybe (Task C (Fin.t k) nat).
 
 (* Given a total task description, a target key, and a store, the total build
  * system returns a new store and is guarantied to terminates. *)
-Definition TotalBuild (C : (Type -> Type) -> Type) (I K V : Type) :=
-  TotalTask C K V -> K -> Store I K V -> Store I K V.
+Definition TotalBuild (C : (Type -> Type) -> Type) (I : Type) :=
+  TotalTasks C -> K -> Store I K V -> Store I K V.
 \end{minted}
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
 \end{figure*}
