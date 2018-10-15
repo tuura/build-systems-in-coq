@@ -162,7 +162,6 @@ complete. We present our motivation and key abstractions developed so far, and
 seek feedback and collaboration from the Coq community.
 \end{abstract}
 
-
 %% 2012 ACM Computing Classification System (CSS) concepts
 %% Generate at 'http://dl.acm.org/ccs/ccs.cfm'.
 \begin{CCSXML}
@@ -187,8 +186,7 @@ seek feedback and collaboration from the Coq community.
 
 %% Keywords
 %% comma separated list
-\keywords{keyword1, keyword2, keyword3}  %% \keywords are mandatory in final camera-ready submission
-
+\keywords{build systems, formalisation}  %% \keywords are mandatory in final camera-ready submission
 
 %% \maketitle
 %% Note: \maketitle command must come after title commands, author
@@ -198,6 +196,21 @@ seek feedback and collaboration from the Coq community.
 
 
 \section{Introduction}
+
+Build systems, such as \Make~\cite{feldman1979make},
+\Bazel~\cite{bazel} and \Shake~\cite{mitchell2012shake}, are used by every
+software developer on the planet, but their subtle algorithms have not yet been
+scrutinised using formal methods. Detailed and executable models of major build
+systems can be found in~\cite{Mokhov2018icfp}, however, these models have not
+been formally verified.
+
+We believe that developing a formal verification framework for build systems
+is a useful, achievable and interesting goal. Modern build systems are
+very difficult to test; they use many optimisations whose correctness is not
+obvious; they drown in accidental complexity that hides a rich internal
+structure --- we hope to address all these issues by looking at build systems
+through the lens of formal methods, and, more concretely, by modelling build
+systems in Coq.
 
 \section{The key abstractions in Coq}
 
@@ -232,7 +245,7 @@ Definition TotalBuild (C : (Type -> Type) -> Type) (I : Type) :=
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
 \end{figure*}
 
-\subsection{Components of a build system} 
+\subsection{Components of a build system}
 
 \paragraph{Keys, values and the store.}
 Build systems are essentialy functions that transform a key/value store to
@@ -303,7 +316,7 @@ types of \hs{Task}'s.
 
 
 %% Bibliography
-\bibliography{biblio.bib}
+\bibliography{biblio}
 
 % %% Appendix
 % \appendix
