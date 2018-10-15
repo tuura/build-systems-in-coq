@@ -17,7 +17,7 @@ Definition natPlus n m := n + m.
 (*   nat -> Maybe ((nat -> F nat) -> F nat). *)
 
 Record Task :=
-  { run: 
+  { run:
     nat -> Maybe ((nat -> State (Store unit nat nat) nat) -> State (Store unit nat nat) nat)   }.
 
 Definition depth (task : Task) (k : nat) : nat :=
@@ -64,7 +64,7 @@ Proof.
   apply Hk2positive.
 Qed.
 
-Lemma lemma0 : forall n m, 
+Lemma lemma0 : forall n m,
 
 Lemma lemma1 : forall k1 k2, k1 > k2 -> k1 > 0.
 Proof.
@@ -74,17 +74,17 @@ Proof.
 
 Lemma t: forall task k1 k2, k1 < k2 -> depth task k1 <= depth task k2.
 Proof.
-  intros.  
+  intros.
   unfold depth.
-    
-  
-  
-  
+
+
+
+
 
 (* Lemma t : forall task, forall k1 k2, k1 < k2 -> depth task k1 < depth task k2. *)
 (* Proof. *)
 (*   intros. *)
-  
+
 
 (* Definition fib : Task := *)
 (*   fun (n : nat) (fetch : nat -> (State (Store unit nat nat) nat)) (n : nat) => *)
