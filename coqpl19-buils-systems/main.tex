@@ -123,6 +123,7 @@
 %% Many elements are not rendered, but should be provided for metadata
 %% extraction tools.
 
+
 \author{Georgy Lukyanov}
 \affiliation{
   \department{School of Engineering}
@@ -194,8 +195,9 @@ seek feedback and collaboration from the Coq community.
 %% environment and commands, and keywords command.
 \maketitle
 
-
+\vspace{-3mm}
 \section{Introduction}
+\vspace{-1mm}
 
 Build systems, such as \Make~\cite{feldman1979make},
 \Bazel~\cite{bazel} and \Shake~\cite{mitchell2012shake}, are used by every
@@ -236,39 +238,56 @@ have an up to date value.
 The next Section~\ref{sec-abstractions} formalises these notions in Coq,
 followed by a discussion in Section~\ref{sec-discussion}.
 
-\section{The key abstractions in Coq}\label{sec-abstractions}
+\vspace{-3mm}
+\section{Encoding build systems in Coq}\label{sec-abstractions}
+\vspace{-1mm}
 
 \begin{figure*}[t]
 \begin{minted}{coq}
 (* An abstract store containing a key/value map and persistent build information *)
 Inductive Store (I K V : Type) := mkStore { info : I; values : K -> V}.
-
+\end{minted}
+\vspace{-1mm}
+\begin{minted}{coq}
 (* Task describes how to build values of type V from keys of type K *)
 Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
   run : forall {F} `{CF: C F}, (K -> F V) -> F V}.
-
+\end{minted}
+\vspace{-1mm}
+\begin{minted}{coq}
+(* Tasks associates a Task to every non-input key; input keys are associated
+ * with Nothing. *)
 Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
   K -> Maybe (Task C K V).
-
+\end{minted}
+\vspace{-1mm}
+\begin{minted}{coq}
 (* Given a task description, a target key, and a store, the build
  * system returns a new store in which the value of the target key is up to date. *)
 Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
   Tasks C K V -> K -> Store I K V -> Store I K V.
-
-(* A total Tasks restrict the key of the dependencies to be strictly
-* smaller than the top-level one. In this abstract we will fix the type of
+\end{minted}
+\vspace{-1mm}
+\begin{minted}{coq}
+(* Total Tasks restrict the key of the dependencies to be strictly
+* smaller than the target key. We will fix the type of
 * keys of total tasks to natural numbers for clarity.*)
 Definition TotalTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
-
+\end{minted}
+\vspace{-1mm}
+\begin{minted}{coq}
 (* Given a total task description, a target key, and a store, the total build
  * system returns a new store and is guarantied to terminates. *)
 Definition TotalBuild (C : (Type -> Type) -> Type) (I : Type) :=
   TotalTasks C -> K -> Store I K V -> Store I K V.
 \end{minted}
+\vspace{-3mm}
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
+\vspace{-5mm}
 \end{figure*}
 
+\vspace{-3mm}
 \subsection{The Task abstraction}
 
 In the Build Systems \`a la Carte framework, the build scenarios are abstracted
@@ -278,16 +297,14 @@ The argument \hs{C} here emulates Haskell's kind \hs{Constraint} and can be
 instantiated with concrete typeclass constraints such as \hs{Functor},
 \hs{Applicative} or \hs{Monad}.
 
-Omiting the type variable bindings, the task description is a~\emph{target key}
-and a task~\emph{semantics}. If the target key is associated to an~\emph{input}
-value --- there is~\coq{Nothing} to be done. Otherwise, the~\coq{run} function
-contains the~\coq{fetch} callback of type \coq{K -> F V}, which, given a key,
-produces a value and possibly couses some side-effects. These side effects are
-of immense value and to have flexible control over them is the exact reason to
-keep \coq{F} polymorphic.
+A \hs{Tasks} associates a task to a ~\emph{target key}.
+If the target key is associated to an~\emph{input}
+value --- there is~\hs{Nothing} to be done. Otherwise, the~\hs{run} function
+contains a callback of type \hs{K -> F V} (conventionly called~\hs{fetch}),
+which, given a key, produces a value and possibly couses some side-effects.
+These side effects are of immense value here and to have flexible control over them
+is the exact reason to keep \hs{F} polymorphic.
 
-The \hs{run} field is parametrised by a
-polymorphic type constructor \hs{F} which is restricted by the constraint \hs{C}.
 The polymorphic \hs{F} is the corner stone of the Build Systems \`a la Carte
 framework: given a~\emph{single} task description, we want to explore~\emph{many}
 build systems that can build it, exploiting distinctive features of various
@@ -296,13 +313,86 @@ with \hs{State s} for some build-state \hs{s}, or it may become the
 \hs{Const K} datatype which allows to statically calculate the dependencies of certain
 types of \hs{Task}'s.
 
+\vspace{-3mm}
 \subsection{The Build abstraction}
 
+Given a task description, a target key, and a store, the build
+system returns a new store in which the value of the target key is up to date.
+The Haskell model of build systems guaranties the termination and correctness of
+a build system only under the assumption that the build task under
+consideration is acyclic. The Haskell model leaves it on the user
+to make sure that their tasks terminate.
+
+\vspace{-3mm}
 \subsection{Total Tasks}
 
+We attempt to modify the build systems framework and encode the always terminating
+task descriptions as the~\hs{TotalTasks} datatype. In contrasts with the regular,
+possibly non-terminating \hs{Tasks}, the total task descriptions are represented as
+a dependent function and the type of keys depends on the value of the target key:
+\hs{Maybe (Task C (Fin.t k) nat)}. This means that every call of the \hs{fetch}
+callback can only be performed with a smaller key. We are trying to facilitate the
+proofs of termination of the~\hs{busy} build system from~\cite{Mokhov2018icfp}
+by establishing a well-founded order on~\hs{TotalTasks}:
 
+\vspace{-1mm}
+\begin{minted}{coq}
+Definition depth
+  {C : (Type -> Type) -> Type}
+  {F : (Type -> Type)} `{CF: C F}
+  (key : nat) (tasks : TotalTasks C) : nat :=
+  match tasks key with
+  | Nothing => 0
+  | Just _  => key
+  end.
+\end{minted}
+
+The~\hs{depth} of the task is zero if the target key is an input one, otherwise
+the depth is equal to the value of the key. Once this order has been proved to be
+well-founded (we haven not done it yet), it will help to formulate the definition
+of the~\hs{busy} build system in Coq and prove its totality.
+
+The following listing contains the definition of the~\hs{fetch} callback to be
+used in the~\hs{busy} build system.
+
+\vspace{-1mm}
+\begin{minted}{coq}
+Program Fixpoint busyFetch
+  {C : (Type -> Type) -> Type}
+  (tasks : TotalTasks C) (k : nat)
+  {measure (depth tasks k)}:
+  (State (Store unit nat nat) nat) :=
+    match tasks k  with
+    | Nothing  => gets (getValue k)
+    | Just task => run task (busyFetch tasks) >>=
+          fun v => modify (putValue k v) >> pure v
+    end.
+\end{minted}
+\vspace{-1mm}
+
+The definition doesn't type check, but gives
+an idea of proof of termination of the~\hs{busy} build system for total tasks:
+if the~\hs{TotalTasks} contains~\hs{Nothing} then the key is an input, hence the
+associated value is retuned; otherwise the~\hs{task} is run with the~\hs{busyFetch}
+callback, supposingly supplying a proof that the recursive call is performed on a
+strictly smaller key. Unfortunately, we are struggling with technical details and
+thus seek guidance in defining this function properly.
+
+\vspace{-3mm}
 \section{Discussion}\label{sec-discussion}
+\vspace{-1mm}
 
+The Haskell-embedded framework for modelling build systems presented in the
+paper~\cite{Mokhov2018icfp} exploits GHC's~\emph{Rank2Types}
+and~\emph{ConstraintKinds} to achieve high level of brevity and code reuse.
+Coq's type system is reach enough to emulate these features and we have been able
+to define all the required abstractions. However, since Coq is a total language,
+defining even the simplest build system~\hs{busy} requires a lot more
+effort than anticipated. Even restricting the~\hs{Tasks} abstraction to
+supposingly always terminating~\hs{TotalTasks} has not made the problem easier.
+
+The main take-away from this experience for us is the necessity to rigorously
+prove the totality of a build system before even attempting to prove its correctness.
 
 % %% Acknowledgments
 % \begin{acks}                            %% acks environment is optional
