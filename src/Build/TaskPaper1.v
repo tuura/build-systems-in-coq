@@ -15,55 +15,47 @@ Definition natPlus n m := n + m.
 
 Definition natMul n m := n * m.
 
-Inductive Task (C : (Type -> Type) -> Type) (K : Type) (V : Type) := {
-  run : forall {F} `{CF: C F}, K -> Maybe ((K -> F V) -> F V)}.
-
-Definition Task' (C : (Type -> Type) -> Type) (K : Type) (V : Type) :=
-  forall {F} `{CF: C F}, K -> Maybe ((K -> F V) -> F V).
+Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
+  run : forall {F} `{CF: C F}, ((K -> F V) -> F V)}.
 
 (* Declare the types of the constraint, key and value to be implicit *)
-Arguments run {C} {K} {V} _ {F} {CF} _.
+Arguments run {C} {K} {V} _ {F} {CF}.
+
+Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
+  K -> Maybe (Task C K V).
 
 Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
-           (task : Task C nat nat) (k : nat) : nat :=
-  match ((run (F:=F) (CF:=CF) task) k) with
+           (key : nat) (tasks : Tasks C nat nat) : nat :=
+  match tasks key with
   | Nothing => 0
-  | Just _  => k
+  | Just _  => key
   end.
 
 Open Scope monad_scope.
 
-Fixpoint fibonacci (n : nat) :
-  Task Applicative nat nat :=
+Definition fibonacci :
+  Tasks Applicative nat nat :=
+  fun n =>
   match n with
-  | O    => {| run := fun {F} {CF} k => Nothing |}
+  | O    => Nothing
   | S n' =>
     match n' with
-    | O     => {| run := fun {F} {CF} k => Nothing |}
-    | S n'' => {| run := fun {F} {CF} k =>
-                  Just (fun fetch => natPlus <$> (fetch n'') <*> (fetch n')) |}
-    end
-  end.
-
-Fixpoint fibonacci' (n : nat) :
-  Task' Applicative nat nat :=
-  match n with
-  | O    => fun {F} {CF} k => Nothing
-  | S n' =>
-    match n' with
-    | O     => fun {F} {CF} k => Nothing
-    | S n'' => fun {F} {CF} k =>
-                  Just (fun fetch => natPlus <$> (fetch n'') <*> (fetch n'))
+    | O     => Nothing
+    | S n'' => Just {| run := fun _ _ =>
+                     (fun fetch => natPlus <$> (fetch n'') <*> (fetch n')) |}
     end
   end.
 
 Definition sprsh1 (key : string) : Task Applicative string nat :=
   match key with
-  | "B1" => {| run := fun _ _ _ =>
+  | "B1" => {| key   := key;
+               fetch := fun _ _ =>
                  Just (fun fetch => natPlus <$> fetch "A1" <*> fetch "A2") |}
-  | "B2" => {| run := fun _ _ _ =>
+  | "B2" => {| key := key;
+               fetch := fun _ _ =>
                  Just (fun fetch => natMul <$> fetch "B1" <*> pure 2) |}
-  |  _   => {| run := fun _ _ _  => Nothing |}
+  |  _   => {| key := key;
+               fetch := fun _ _  => Nothing |}
   end.
 
 (****************************************************************************)
@@ -78,13 +70,16 @@ Variable C : (Type -> Type) -> Type.
 Variable F : (Type -> Type).
 Variable task : Task Applicative K V.
 
-Check run task (C:=Applicative) (F:=F).
-
 End T.
 
-Definition adapt {K V : Type} (task : Task Applicative K V) : Task Monad K V :=
-  let r := run task (C:=Applicative)
-  in {| run := fun _ _ => r |}.
+Definition adapt {K V : Type} {F : (Type -> Type)} `{Monad F}
+  (task : Task Applicative K V) : Task Monad K V :=
+  match fetch (F := F) task with
+  | Nothing => {| key := key task
+                ; fetch := fun _ _ => Nothing |}
+  | Just f  => {| key := key task
+                ; fetch := fun F Monad => Just f |}
+  end.
 
 Fixpoint fibonatty' (n : nat) : Task' Monad nat nat :=
   fibonacci' n >>= fun fn =>

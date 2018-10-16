@@ -16,22 +16,35 @@ Definition natPlus n m := n + m.
 Definition natMul n m := n * m.
 
 Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
-  run : forall {F} `{CF: C F}, ((K -> F V) -> F V)}.
+  run : forall {F} `{CF: C F}, (K -> F V) -> F V}.
 
 (* Declare the types of the constraint, key and value to be implicit *)
 Arguments run {C} {K} {V} _ {F} {CF}.
 
-Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
-  K -> Maybe (Task C K V).
+Definition TotalTasks (C : (Type -> Type) -> Type) :=
+  forall (k : nat), Maybe (Task C (Fin.t k) nat).
+
+Check TotalTasks Applicative.
 
 Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
-           (key : nat) (tasks : Tasks C nat nat) : nat :=
+           (tasks : TotalTasks C) (key : nat) : nat :=
   match tasks key with
   | Nothing => 0
   | Just _  => key
   end.
 
 Open Scope monad_scope.
+
+Program Fixpoint busyFetch {C : (Type -> Type) -> Type}
+  (tasks : TotalTasks C) (k : nat) {measure (depth tasks k)}:
+  (State (Store unit nat nat) nat) :=
+    (* let t := (run task) (fun k' => busyFetch task k') k in *)
+    match tasks k  with
+    | Nothing  => gets (getValue k)
+    | Just task =>
+      run task (busyFetch tasks) >>=
+          fun v => modify (putValue k v) >> pure v
+    end.
 
 Definition fibonacci :
   Tasks Applicative nat nat :=
@@ -97,7 +110,7 @@ Program Fixpoint busyFetch (task : Task) (k : nat) {measure (depth task k)}:
 
 Check busyFetch fib.
 
-Program Fixpoint busyFetch (task : Task) (k : nat) {measure (depth task k)}:
+Program Fixpoint busyFetch (task : TotalTasks) (k : nat) {measure (depth task k)}:
   (State (Store unit nat nat) nat) :=
     (* let t := (run task) (fun k' => busyFetch task k') k in *)
     match task k  with
