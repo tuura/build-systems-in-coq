@@ -212,7 +212,31 @@ structure --- we hope to address all these issues by looking at build systems
 through the lens of formal methods, and, more concretely, by modelling build
 systems in Coq.
 
-\section{The key abstractions in Coq}
+What is a build system? Below we briefly recite main build systems notions
+using the vocabulary from~\cite{Mokhov2018icfp}.
+
+Build systems operate on a \emph{key/value store}, where the keys are typically
+filenames and the values are file contents. Some values must be provided by
+the user as \emph{input}, e.g. by editing \emph{source files}, whereas
+\emph{output} values are produced by the build system by executing \emph{build
+tasks}, also called \emph{rules}.
+
+As well as the key/value mapping, the store also contains \emph{build
+information} maintained by the build system itself, which is persistently stored
+between build runs.
+
+To run a build system, the user should specify how to compute the values for
+output keys using the values of its \emph{dependencies}. We call this
+specification the \emph{task description}.
+
+A \emph{build system} takes a task description, a \emph{target} key, and a
+store, and returns a new store in which the target key and all its dependencies
+have an up to date value.
+
+The next Section~\ref{sec-abstractions} formalises these notions in Coq,
+followed by a discussion in Section~\ref{sec-discussion}.
+
+\section{The key abstractions in Coq}\label{sec-abstractions}
 
 \begin{figure*}[t]
 \begin{minted}{coq}
@@ -245,38 +269,6 @@ Definition TotalBuild (C : (Type -> Type) -> Type) (I : Type) :=
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
 \end{figure*}
 
-\subsection{Components of a build system}
-
-\paragraph{Keys, values and the store.}
-Build systems are essentialy functions that transform a key/value store to
-make it up to date. In software build systems the store is the file system,
-the keys are filenames, and the values are file contents. In Excel, the store is
-the worksheets, the keys are cell names (such as A1) and the values are numbers,
-strings, etc., displayed as the cell contents.
-
-\paragraph{Input, output and intermediate values.}
-Some values must be provided by
-the user as \emph{input}. For example, \cmd{main.c} can be edited by the user
-who relies on the build system to compile it into \cmd{main.o} and subsequently
-\cmd{main.exe}. End build products, such as \cmd{main.exe}, are \emph{output}
-values. All other values (in this case \cmd{main.o}) are \emph{intermediate};
-they are not interesting for the user but are produced in the process of turning
-inputs into outputs.
-
-\paragraph{Persistent build information.} As well as the key/value mapping, the
-store also contains information maintained by the build system itself, which
-persists from one invocation of the build system to the next -- its ``memory''.
-
-\paragraph{Task description.} Any build system requires the user to specify how
-to compute the new value for one key, using the (up to date) values of its
-dependencies. We call this specification the \emph{task description}. For
-example, in \Excel, the formulae of the spreadsheet constitute the task
-description; in \Make the rules in the makefile are the task description.
-
-\paragraph{Build system.} A \emph{build system} takes a task description, a
-\emph{target} key, and a store, and returns a new store in which the target key
-and all its dependencies have an up to date value.
-
 \subsection{The Task abstraction}
 
 In the Build Systems \`a la Carte framework, the build scenarios are abstracted
@@ -307,6 +299,9 @@ types of \hs{Task}'s.
 \subsection{The Build abstraction}
 
 \subsection{Total Tasks}
+
+
+\section{Discussion}\label{sec-discussion}
 
 
 % %% Acknowledgments
