@@ -24,8 +24,6 @@ Arguments run {C} {K} {V} _ {F} {CF}.
 Definition TotalTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
 
-Check TotalTasks Applicative.
-
 Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
            (tasks : TotalTasks C) (key : nat) : nat :=
   match tasks key with
@@ -35,98 +33,54 @@ Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
 
 Open Scope monad_scope.
 
-Program Fixpoint busyFetch {C : (Type -> Type) -> Type}
-  (tasks : TotalTasks C) (k : nat) {measure (depth tasks k)}:
-  (State (Store unit nat nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match tasks k  with
-    | Nothing  => gets (getValue k)
-    | Just task =>
-      run task (busyFetch tasks) >>=
-          fun v => modify (putValue k v) >> pure v
-    end.
+(* TODO: use standart lemmas instead of these ad-hoc ones *)
+Lemma succ_gt_zero : forall n, 0 = S n -> False.
+Proof. intros. omega. Qed.
+
+Lemma succ_eq_impls_eq : forall n m, S n = S m -> n = m.
+Proof. intros. omega. Qed.
+
+Lemma succsucc_gt_zero : forall n, 0 = S (S n) -> False.
+Proof. intros. omega. Qed.
+
+(* Safely convert a (p : nat) into a Fin.t n if n = S p *)
+Fixpoint of_nat_succ {p n : nat} : n = S p -> t n :=
+  match n with
+    |0 => fun H : 0 = S p => False_rect _ (succ_gt_zero p H)
+    |S n' => match p with
+      |0 => fun _ => @F1 n'
+      |S p' => fun H => FS (of_nat_succ (succ_eq_impls_eq _ _ H))
+    end
+  end.
+
+(* Safely convert a (p : nat) into a Fin.t n if n = S (S p) *)
+(* TODO: reuse of_nat_succ *)
+Fixpoint of_nat_succsucc {p n : nat} : n = S (S p) -> t n :=
+  match n with
+    |0 => fun H : 0 = S (S p) => False_rect _ (succsucc_gt_zero p H)
+    |S n' => match p with
+      |0 => fun _ => @F1 n'
+      |S p' => fun H => FS (of_nat_succsucc (succ_eq_impls_eq _ _ H))
+    end
+  end.
+
+(* Can't come up with a short name for this lemma, so let is just be l *)
+Lemma l : forall {n n' n''},
+    n = S n' -> n' = S n'' -> n = S (S n'').
+Proof. intros. omega. Qed.
 
 Definition fibonacci :
-  Tasks Applicative nat nat :=
+  TotalTasks Applicative :=
   fun n =>
-  match n with
-  | O    => Nothing
-  | S n' =>
-    match n' with
-    | O     => Nothing
-    | S n'' => Just {| run := fun _ _ =>
-                     (fun fetch => natPlus <$> (fetch n'') <*> (fetch n')) |}
-    end
-  end.
-
-Definition sprsh1 (key : string) : Task Applicative string nat :=
-  match key with
-  | "B1" => {| key   := key;
-               fetch := fun _ _ =>
-                 Just (fun fetch => natPlus <$> fetch "A1" <*> fetch "A2") |}
-  | "B2" => {| key := key;
-               fetch := fun _ _ =>
-                 Just (fun fetch => natMul <$> fetch "B1" <*> pure 2) |}
-  |  _   => {| key := key;
-               fetch := fun _ _  => Nothing |}
-  end.
-
-(****************************************************************************)
-
-(* adaptRebuilder :: Rebuilder Monad i k v -> Rebuilder Applicative i k v *)
-(* adaptRebuilder rebuilder key value task = rebuilder key value $ Task $ run task *)
-
-Module T.
-
-Variable K V : Type.
-Variable C : (Type -> Type) -> Type.
-Variable F : (Type -> Type).
-Variable task : Task Applicative K V.
-
-End T.
-
-Definition adapt {K V : Type} {F : (Type -> Type)} `{Monad F}
-  (task : Task Applicative K V) : Task Monad K V :=
-  match fetch (F := F) task with
-  | Nothing => {| key := key task
-                ; fetch := fun _ _ => Nothing |}
-  | Just f  => {| key := key task
-                ; fetch := fun F Monad => Just f |}
-  end.
-
-Fixpoint fibonatty' (n : nat) : Task' Monad nat nat :=
-  fibonacci' n >>= fun fn =>
-    if Nat.even n
-    then fun {F} {CF} k => Just (fun fetch => pure fn)
-    else fun {F} {CF} k => Just (fun fetch => pure n).
-
-Program Fixpoint busyFetch (task : Task) (k : nat) {measure (depth task k)}:
-  (State (Store unit nat nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match (run task) k with
-    | Nothing  => gets (getValue k)
-    | Just act => undefined
-    end.
-
-Check busyFetch fib.
-
-Program Fixpoint busyFetch (task : TotalTasks) (k : nat) {measure (depth task k)}:
-  (State (Store unit nat nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match task k  with
-    | Nothing  => gets (getValue k)
-    | Just act =>
-      (act (fun x => busyFetch task k)) >>=
-          fun v => modify (putValue k v) >> pure v
-    end.
-
-Fixpoint busyFib (n : nat) : State (Store unit nat nat) nat :=
-  match n with
-  | O    =>  gets (getValue 0)
-  | S n' =>
-    match n' with
-    | O    =>  gets (getValue 1)
-    | S n'' => natPlus <$> busyFib n'' <*> busyFib n' >>=
-               fun v => modify (putValue n v) >> pure v
-    end
-  end.
+  match n as m return n = m -> Maybe (Task Applicative (Fin.t n) nat) with
+  | O    => fun _ => Nothing
+  | S n' => fun p1 =>
+    let x := of_nat_succ p1 in
+    match n' as m' return n' = m' -> Maybe (Task Applicative (Fin.t n) nat) with
+    | O     => fun _  => Nothing
+    | S n'' => fun p2 => Just
+      {| run := fun _ _ =>
+           (fun fetch => natPlus <$> fetch (of_nat_succ p1)
+                                 <*> fetch (of_nat_succsucc (l p1 p2))) |}
+    end eq_refl
+  end eq_refl.
