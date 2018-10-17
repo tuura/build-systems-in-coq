@@ -69,9 +69,13 @@ Lemma l : forall {n n' n''},
     n = S n' -> n' = S n'' -> n = S (S n'').
 Proof. intros. omega. Qed.
 
+(* Note: of_nat_succ p1 can be expanded to @of_nat_succ n' n p1 to specify
+   the implicit n' (the nat to convert) and n (the upper bound). It feels
+   less obscure, but looks realy ugly *)
 Definition fibonacci :
   TotalTasks Applicative :=
   fun n =>
+  (* Match on n and get proofs of equality in the branches (like p1 : S n' = n) *)
   match n as m return n = m -> Maybe (Task Applicative (Fin.t n) nat) with
   | O    => fun _ => Nothing
   | S n' => fun p1 =>
