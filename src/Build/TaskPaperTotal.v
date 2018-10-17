@@ -79,7 +79,6 @@ Definition fibonacci :
   match n as m return n = m -> Maybe (Task Applicative (Fin.t n) nat) with
   | O    => fun _ => Nothing
   | S n' => fun p1 =>
-    let x := of_nat_succ p1 in
     match n' as m' return n' = m' -> Maybe (Task Applicative (Fin.t n) nat) with
     | O     => fun _  => Nothing
     | S n'' => fun p2 => Just
