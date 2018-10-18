@@ -255,8 +255,7 @@ Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Tasks associates a Task to every non-input key; input keys are associated
- * with Nothing. *)
+(* Tasks associates a Task to every non-input key; input keys are associated with Nothing. *)
 Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
   K -> Maybe (Task C K V).
 \end{minted}
@@ -316,9 +315,10 @@ types of \hs{Task}'s.
 
 As an example, consider a description of the tasks to compute Fibonacci numbers:
 
+\vspace{-1mm}
 \begin{minted}{coq}
-Definition fibonacci :
-  Tasks Applicative nat nat := fun n =>
+Definition fibonacci : Tasks Applicative nat nat :=
+  fun n =>
   match n with
   | 0  => Nothing
   | 1  => Nothing
@@ -328,31 +328,40 @@ Definition fibonacci :
                               <*> fetch m |}
   end.
 \end{minted}
+\vspace{-1mm}
 
 The keys~\coq{0} and~\coq{1} correspond to inputs, thus no dependencies need to
-be fetched. The rest of the keys are associated to non-trivial tasks.
+be fetched. The rest of the keys are associated to non-trivial tasks, that fetch
+the two previous Fibonacci numbers and return their sum.
 
+Dependencies of applicative tasks can be calculated statically, without proving
+an actual instance of~\hs{Store}:
+
+\vspace{-1mm}
 \begin{minted}{coq}
 Definition dependencies {K V : Type}
   (task : Task Applicative K V) :
   list K := getConst
     ((run task) (fun k => mkConst (cons k nil))).
 \end{minted}
+\vspace{-1mm}
 
-The~\coq{fibonacci} dependencies function instantiate the~\hs{F} type constructor
+The~\coq{dependencies} function instantiates the~\hs{F} type constructor
 with~\hs{Const (list K)} and executes the task with a~\hs{fetch} callback that
-just reports the fetched keys. The keys then get accumulated to a list by the
-\hs{Applicative} instance for~\hs{Const K}.
+just reports the fetched key. The keys then get accumulated to a list by the
+\hs{Applicative} instance of~\hs{Const K} datatype.
 
-The~\coq{fibonacci} is applicative, therefore it can be statically analysed for
-dependencies. And the correctness of the dependency function can be trivially proved
-for this specific task description:
+The~\coq{fibonacci} task description is applicative, therefore it can be
+statically analysed for dependencies, and the correctness of the dependency
+function can be trivially proved for this specific case:
 
+\vspace{-1mm}
 \begin{minted}{coq}
 Theorem deps_fib_correct : forall n,
   deps_fib (S (S n)) = (S n :: n :: nil).
 Proof. reflexivity. Qed.
 \end{minted}
+\vspace{-1mm}
 
 \vspace{-3mm}
 \subsection{Acyclic Tasks}
@@ -360,10 +369,9 @@ Proof. reflexivity. Qed.
 We attempt to modify the build systems framework and encode the always terminating
 task descriptions as the~\hs{AcyclicTasks} datatype. In contrasts with the regular,
 possibly non-terminating \hs{Tasks}, acyclic task descriptions are represented as
-a dependent function and the type of keys depends on the value of the target key:
-\hs{Maybe (Task C (Fin.t k) nat)}. This means that every call of the \hs{fetch}
-callback can only be performed with a smaller key. The Fibonacci function
-can also be represented as an acyclic task:
+a dependent function: the type of keys depends on the value of the target key.
+Thus, every call of the \hs{fetch} callback can only be performed with a smaller key.
+The Fibonacci function can also be represented as an acyclic task:
 
 \vspace{-1mm}
 \begin{minted}{coq}
@@ -378,6 +386,7 @@ Definition fibonacci :
                    <*> fetch (inject1 (from_nat m)) |}
   end.
 \end{minted}
+\vspace{-1mm}
 
 \vspace{-3mm}
 \section{Discussion}\label{sec-discussion}
