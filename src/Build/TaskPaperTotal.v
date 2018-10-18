@@ -69,6 +69,48 @@ Lemma l : forall {n n' n''},
     n = S n' -> n' = S n'' -> n = S (S n'').
 Proof. intros. omega. Qed.
 
+Fixpoint from_nat (p : nat) : Fin.t (S p) :=
+  match p with
+  |0 => F1
+  |S p' => FS (from_nat p')
+  end.
+
+Fixpoint inject____1 {m} (x : Fin.t m) : Fin.t (S m) :=
+  match x with
+  | F1 => F1
+  | FS x' => FS (inject____1 x')
+  end.
+
+Definition fibonacci :
+  TotalTasks Applicative := fun n =>
+  match n with
+  | O  => Nothing
+  | 1  => Nothing 
+  | S (S n') => Just
+      {| run := fun _ _ => fun fetch =>
+           Nat.add <$> fetch (from_nat (S n'))
+                   <*> fetch (inject____1 (from_nat n')) |}
+  end.
+
+(* Note: of_nat_succ p1 can be expanded to @of_nat_succ n' n p1 to specify
+   the implicit n' (the nat to convert) and n (the upper bound). It feels
+   less obscure, but looks realy ugly *)
+Definition fibonacci :
+  TotalTasks Applicative :=
+  fun n =>
+  (* Match on n and get proofs of equality in the branches (like p1 : S n' = n) *)
+  match n as m return n = m -> Maybe (Task Applicative (Fin.t n) nat) with
+  | O    => fun _ => Nothing
+  | S n' => fun p1 =>
+    match n' as m' return n' = m' -> Maybe (Task Applicative (Fin.t n) nat) with
+    | O     => fun _  => Nothing
+    | S n'' => fun p2 => Just
+      {| run := fun _ _ =>
+           (fun fetch => natPlus <$> fetch (from_nat n')
+                                 <*> fetch (from_nat n'')) |}
+    end eq_refl
+  end eq_refl.
+
 (* Note: of_nat_succ p1 can be expanded to @of_nat_succ n' n p1 to specify
    the implicit n' (the nat to convert) and n (the upper bound). It feels
    less obscure, but looks realy ugly *)
@@ -87,3 +129,11 @@ Definition fibonacci :
                                  <*> fetch (of_nat_succsucc (l p1 p2))) |}
     end eq_refl
   end eq_refl.
+
+Fixpoint busyFetch (tasks : TotalTasks Monad) (k : nat):
+  (State (Store unit nat nat) nat) :=
+    (* let t := (run task) (fun k' => busyFetch task k') k in *)
+    match tasks k with
+    | Nothing  => gets (getValue k)
+    | Just task => (run task) k >>= fun v => undefined
+    end.
