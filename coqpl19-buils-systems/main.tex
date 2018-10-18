@@ -363,6 +363,15 @@ Proof. reflexivity. Qed.
 \end{minted}
 \vspace{-1mm}
 
+Task descriptions trap the recursion inside the fetching callback. In case of
+the~\coq{dependencies} function, fetching callback is not recursive, thus the
+dependencies ``build system'' always terminates. However, proper build systems
+described in~\cite{Mokhov2018icfp} require a recursive fetching callback.
+At this point, we have not managed to encode even the simples build
+system~\hs{busy}, because Coq's termination checker is a hard judge to persuade.
+To tackle this issue, we attempt to formalise the notion of always-terminating
+acyclic task descriptions.
+
 \vspace{-3mm}
 \subsection{Acyclic Tasks}
 
@@ -398,7 +407,9 @@ and~\emph{ConstraintKinds} to achieve high level of brevity and code reuse.
 Coq's type system is reach enough to emulate these features and we have been able
 to define all the required abstractions. However, since Coq is a total language,
 defining even the simplest build system~\hs{busy} requires a lot more
-effort than anticipated. Even restricting the~\hs{Tasks} abstraction to
+effort than anticipated.
+
+Even restricting the~\hs{Tasks} abstraction to
 supposingly always terminating~\hs{AcyclicTasks} has not made the problem easier.
 
 The main take-away from this experience for us is the necessity to rigorously
