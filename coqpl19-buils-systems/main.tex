@@ -269,9 +269,8 @@ Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Acyclic Tasks restrict the key of the dependencies to be strictly
-* smaller than the target key. We will fix the type of
-* keys of acyclic tasks to natural numbers for clarity.*)
+(* Acyclic Tasks restrict the key of the dependencies to be strictly smaller than
+ * the target key. We will fix the type of keys of acyclic tasks to natural numbers for clarity.*)
 Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
 \end{minted}
@@ -313,15 +312,45 @@ with \hs{State s} for some build-state \hs{s}, or it may become the
 \hs{Const K} datatype which allows to statically calculate the dependencies of certain
 types of \hs{Task}'s.
 
-\vspace{-3mm}
-\subsection{The Build abstraction}
+As an example, consider a description of the tasks to compute Fibonacci numbers:
 
-Given a task description, a target key, and a store, the build
-system returns a new store in which the value of the target key is up to date.
-The Haskell model of build systems guaranties the termination and correctness of
-a build system only under the assumption that the build task under
-consideration is acyclic. The Haskell model leaves it on the user
-to make sure that their tasks terminate.
+\begin{minted}{coq}
+Definition fibonacci :
+  Tasks Applicative nat nat := fun n =>
+  match n with
+  | 0  => Nothing
+  | 1  => Nothing
+  | S (S m) => Just {|
+               run := fun _ _ => fun fetch =>
+                      Nat.add <$> fetch (S m)
+                              <*> fetch m |}
+  end.
+\end{minted}
+
+The keys~\coq{0} and~\coq{1} correspond to inputs, thus no dependencies need to
+be fetched. The rest of the keys are associated to non-trivial tasks.
+
+\begin{minted}{coq}
+Definition dependencies {K V : Type}
+  (task : Task Applicative K V) :
+  list K := getConst
+    ((run task) (fun k => mkConst (cons k nil))).
+\end{minted}
+
+The~\coq{fibonacci} dependencies function instantiate the~\hs{F} type constructor
+with~\hs{Const (list K)} and executes the task with a~\hs{fetch} callback that
+just reports the fetched keys. The keys then get accumulated to a list by the
+\hs{Applicative} instance for~\hs{Const K}.
+
+The~\coq{fibonacci} is applicative, therefore it can be statically analysed for
+dependencies. And the correctness of the dependency function can be trivially proved
+for this specific task description:
+
+\begin{minted}{coq}
+Theorem deps_fib_correct : forall n,
+  deps_fib (S (S n)) = (S n :: n :: nil).
+Proof. reflexivity. Qed.
+\end{minted}
 
 \vspace{-3mm}
 \subsection{Acyclic Tasks}
@@ -331,52 +360,22 @@ task descriptions as the~\hs{AcyclicTasks} datatype. In contrasts with the regul
 possibly non-terminating \hs{Tasks}, acyclic task descriptions are represented as
 a dependent function and the type of keys depends on the value of the target key:
 \hs{Maybe (Task C (Fin.t k) nat)}. This means that every call of the \hs{fetch}
-callback can only be performed with a smaller key. We are trying to facilitate the
-proofs of termination of the~\hs{busy} build system from~\cite{Mokhov2018icfp}
-by establishing a well-founded order on~\hs{AcyclicTasks}:
+callback can only be performed with a smaller key. The Fibonacci function
+can also be represented as an acyclic task:
 
 \vspace{-1mm}
 \begin{minted}{coq}
-Definition depth
-  {C : (Type -> Type) -> Type}
-  {F : (Type -> Type)} `{CF: C F}
-  (key : nat) (tasks : AcyclicTasks C) : nat :=
-  match tasks key with
-  | Nothing => 0
-  | Just _  => key
+Definition fibonacci :
+  AcyclicTasks Applicative := fun n =>
+  match n with
+  | 0  => Nothing
+  | 1  => Nothing
+  | S (S m) => Just
+      {| run := fun _ _ => fun fetch =>
+           Nat.add <$> fetch (from_nat (S m))
+                   <*> fetch (inject1 (from_nat m)) |}
   end.
 \end{minted}
-
-The~\hs{depth} of the task is zero if the target key is an input one, otherwise
-the depth is equal to the value of the key. Once this order has been proved to be
-well-founded (we haven not done it yet), it will help to formulate the definition
-of the~\hs{busy} build system in Coq and prove its totality.
-
-The following listing contains the definition of the~\hs{fetch} callback to be
-used in the~\hs{busy} build system.
-
-\vspace{-1mm}
-\begin{minted}{coq}
-Program Fixpoint busyFetch
-  {C : (Type -> Type) -> Type}
-  (tasks : AcyclicTasks C) (k : nat)
-  {measure (depth tasks k)}:
-  (State (Store unit nat nat) nat) :=
-    match tasks k  with
-    | Nothing  => gets (getValue k)
-    | Just task => run task (busyFetch tasks) >>=
-          fun v => modify (putValue k v) >> pure v
-    end.
-\end{minted}
-\vspace{-1mm}
-
-The definition doesn't type check, but gives
-an idea of proof of termination of the~\hs{busy} build system for acyclic tasks:
-if the~\hs{AcyclicTasks} contains~\hs{Nothing} then the key is an input, hence the
-associated value is retuned; otherwise the~\hs{task} is run with the~\hs{busyFetch}
-callback, supposingly supplying a proof that the recursive call is performed on a
-strictly smaller key. Unfortunately, we are struggling with technical details and
-thus seek guidance in defining this function properly.
 
 \vspace{-3mm}
 \section{Discussion}\label{sec-discussion}
