@@ -23,11 +23,11 @@ Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
 (* Declare the types of the constraint, key and value to be implicit *)
 Arguments run {C} {K} {V} _ {F} {CF}.
 
-Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
-  forall (k : nat), Maybe (Task C (Fin.t k) nat).
+Definition AcyclicTasks (C : (Type -> Type) -> Type) (V : Type) :=
+  forall (k : nat), Maybe (Task C (Fin.t k) V).
 
-Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
-           (tasks : AcyclicTasks C) (key : nat) : nat :=
+Definition depth {C : (Type -> Type) -> Type} {V : Type} {F : (Type -> Type)} `{CF: C F}
+           (tasks : AcyclicTasks C V) (key : nat) : nat :=
   match tasks key with
   | Nothing => 0
   | Just _  => key
@@ -87,7 +87,7 @@ Check Fin.L.
 Print Fin.L.
 
 Definition fibonacci :
-  AcyclicTasks Applicative := fun n =>
+  AcyclicTasks Applicative nat := fun n =>
   match n with
   | 0  => Nothing
   | 1  => Nothing
@@ -104,18 +104,19 @@ Definition fibonacci :
 Definition dependencies {K V : Type} (task : Task Applicative K V) : list K :=
   getConst ((run task) (fun k => mkConst (cons k nil))).
 
-Definition deps_fib (k : nat) : list (Fin.t k) :=
-  match fibonacci k with
-  | Nothing => nil
-  | Just task => dependencies task
-  end.
-
-(* Definition deps_fib (k : nat) : list nat := *)
+(* Definition deps_fib (k : nat) : list (Fin.t k) := *)
 (*   match fibonacci k with *)
 (*   | Nothing => nil *)
-(*   | Just task => map (fun x => proj1_sig (Fin.to_nat x)) (dependencies task) *)
+(*   | Just task => dependencies task *)
 (*   end. *)
 
+Definition deps_fib (k : nat) : list nat :=
+  match fibonacci k with
+  | Nothing => nil
+  | Just task => map (fun x => proj1_sig (Fin.to_nat x)) (dependencies task)
+  end.
+
 Eval compute in deps_fib (S (S 1)).
+
 
 (* dependencies (fib (S (S n)) == [n, S n] *)
