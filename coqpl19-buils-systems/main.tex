@@ -286,15 +286,17 @@ Definition AcyclicBuild (C : (Type -> Type) -> Type) (I : Type) :=
 \vspace{-5mm}
 \end{figure*}
 
-\vspace{-3mm}
-\subsection{The Task abstraction}
+% \vspace{-3mm}
+% \subsection{The Task abstraction}
 
-In the Build Systems \`a la Carte framework, the build scenarios are abstracted
-as \hs{Task}'s (see the figure~\ref{fig-defs}). A \hs{Task}
-describes how to build a value of type \hs{V} from a key of type \hs{K}.
-The argument \hs{C} here emulates Haskell's kind \hs{Constraint} and can be
-instantiated with concrete typeclass constraints such as \hs{Functor},
-\hs{Applicative} or \hs{Monad}.
+Building on the abstractions from~\cite{Mokhov2018icfp}, we model \hs{Store} as
+an abstract data type parameterised by the type of keys~\hs{K}, values~\hs{V},
+and build information~\hs{I} (see the Fig.~\ref{fig-defs}). A \hs{Task}
+describes how to compute a value of a key (\hs{F V}), given a way to find values
+of its dependencies (the callback \hs{K -> F V}). The type of effect~\hs{F}
+associated with computing values is constrained by~\hs{C}, which emulates
+Haskell's kind \hs{Constraint} and can be instantiated with concrete constraints,
+such as \hs{Functor}, \hs{Applicative} or \hs{Monad}.
 
 A \hs{Tasks} associates a task to a ~\emph{target key}.
 If the target key is associated to an~\emph{input}
