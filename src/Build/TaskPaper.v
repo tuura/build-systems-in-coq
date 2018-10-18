@@ -1,6 +1,8 @@
 Require Import Coq.Vectors.Fin.
+Require Import Coq.Lists.List.
 Require Import Data.Maybe.
 Require Import Data.Functor.
+Require Import Data.Functor.Const.
 Require Import Control.Applicative.
 Require Import Control.Monad.
 Require Import Control.Monad.State.
@@ -10,6 +12,7 @@ Require Import Coq.Program.Wf.
 Require Import Omega.
 Require Import Strings.String.
 Local Open Scope string_scope.
+Require Import ssreflect.
 
 Definition natPlus n m := n + m.
 
@@ -34,17 +37,34 @@ Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
 Open Scope monad_scope.
 
 Definition fibonacci :
-  Tasks Applicative nat nat :=
-  fun n =>
+  Tasks Applicative nat nat := fun n =>
   match n with
-  | O    => Nothing
-  | S n' =>
-    match n' with
-    | O     => Nothing
-    | S n'' => Just {| run := fun _ _ =>
-                     (fun fetch => natPlus <$> (fetch n'') <*> (fetch n')) |}
-    end
+  | 0  => Nothing
+  | 1  => Nothing
+  | S (S m) => Just
+      {| run := fun _ _ => fun fetch =>
+           Nat.add <$> fetch (S m)
+                   <*> fetch m |}
   end.
+
+Definition dependencies {K V : Type} (task : Task Applicative K V) : list K :=
+  getConst ((run task) (fun k => mkConst (cons k nil))).
+
+Definition deps_fib (k : nat) : list nat :=
+  match fibonacci k with
+  | Nothing => nil
+  | Just task => dependencies task
+  end.
+
+Theorem deps_fib_correct : forall n, deps_fib (S (S n)) = (S n :: n :: nil).
+Proof.
+  reflexivity.
+Qed.
+
+Theorem deps_fib_correct' : forall n, dependencies (fibonacci (S (S n))) = (S n :: n :: nil).
+Proof.
+  reflexivity.
+Qed.
 
 Definition sprsh1 (key : string) : Task Applicative string nat :=
   match key with
@@ -56,64 +76,4 @@ Definition sprsh1 (key : string) : Task Applicative string nat :=
                  Just (fun fetch => natMul <$> fetch "B1" <*> pure 2) |}
   |  _   => {| key := key;
                fetch := fun _ _  => Nothing |}
-  end.
-
-(****************************************************************************)
-
-(* adaptRebuilder :: Rebuilder Monad i k v -> Rebuilder Applicative i k v *)
-(* adaptRebuilder rebuilder key value task = rebuilder key value $ Task $ run task *)
-
-Module T.
-
-Variable K V : Type.
-Variable C : (Type -> Type) -> Type.
-Variable F : (Type -> Type).
-Variable task : Task Applicative K V.
-
-End T.
-
-Definition adapt {K V : Type} {F : (Type -> Type)} `{Monad F}
-  (task : Task Applicative K V) : Task Monad K V :=
-  match fetch (F := F) task with
-  | Nothing => {| key := key task
-                ; fetch := fun _ _ => Nothing |}
-  | Just f  => {| key := key task
-                ; fetch := fun F Monad => Just f |}
-  end.
-
-Fixpoint fibonatty' (n : nat) : Task' Monad nat nat :=
-  fibonacci' n >>= fun fn =>
-    if Nat.even n
-    then fun {F} {CF} k => Just (fun fetch => pure fn)
-    else fun {F} {CF} k => Just (fun fetch => pure n).
-
-Program Fixpoint busyFetch (task : Task) (k : nat) {measure (depth task k)}:
-  (State (Store unit nat nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match (run task) k with
-    | Nothing  => gets (getValue k)
-    | Just act => undefined
-    end.
-
-Check busyFetch fib.
-
-Program Fixpoint busyFetch (task : Task) (k : nat) {measure (depth task k)}:
-  (State (Store unit nat nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match task k  with
-    | Nothing  => gets (getValue k)
-    | Just act =>
-      (act (fun x => busyFetch task k)) >>=
-          fun v => modify (putValue k v) >> pure v
-    end.
-
-Fixpoint busyFib (n : nat) : State (Store unit nat nat) nat :=
-  match n with
-  | O    =>  gets (getValue 0)
-  | S n' =>
-    match n' with
-    | O    =>  gets (getValue 1)
-    | S n'' => natPlus <$> busyFib n'' <*> busyFib n' >>=
-               fun v => modify (putValue n v) >> pure v
-    end
   end.

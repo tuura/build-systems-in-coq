@@ -1,6 +1,8 @@
 Require Import Coq.Vectors.Fin.
+Require Import Coq.Lists.List.
 Require Import Data.Maybe.
 Require Import Data.Functor.
+Require Import Data.Functor.Const.
 Require Import Control.Applicative.
 Require Import Control.Monad.
 Require Import Control.Monad.State.
@@ -75,11 +77,14 @@ Fixpoint from_nat (p : nat) : Fin.t (S p) :=
   |S p' => FS (from_nat p')
   end.
 
-Fixpoint inject____1 {m} (x : Fin.t m) : Fin.t (S m) :=
+Fixpoint inject__1 {m} (x : Fin.t m) : Fin.t (S m) :=
   match x with
   | F1 => F1
-  | FS x' => FS (inject____1 x')
+  | FS x' => FS (inject__1 x')
   end.
+
+Check Fin.L.
+Print Fin.L.
 
 Definition fibonacci :
   TotalTasks Applicative := fun n =>
@@ -89,32 +94,37 @@ Definition fibonacci :
   | S (S m) => Just
       {| run := fun _ _ => fun fetch =>
            Nat.add <$> fetch (from_nat (S m))
-                   <*> fetch (inject____1 (from_nat m)) |}
+                   <*> fetch (inject__1 (from_nat m)) |}
   end.
 
-(* Note: of_nat_succ p1 can be expanded to @of_nat_succ n' n p1 to specify
-   the implicit n' (the nat to convert) and n (the upper bound). It feels
-   less obscure, but looks realy ugly *)
-Definition fibonacci' :
-  TotalTasks Applicative :=
-  fun n =>
-  (* Match on n and get proofs of equality in the branches (like p1 : S n' = n) *)
-  match n as m return n = m -> Maybe (Task Applicative (Fin.t n) nat) with
-  | O    => fun _ => Nothing
-  | S n' => fun p1 =>
-    match n' as m' return n' = m' -> Maybe (Task Applicative (Fin.t n) nat) with
-    | O     => fun _  => Nothing
-    | S n'' => fun p2 => Just
-      {| run := fun _ _ =>
-           (fun fetch => natPlus <$> fetch (of_nat_succ p1)
-                                 <*> fetch (of_nat_succsucc (l p1 p2))) |}
-    end eq_refl
-  end eq_refl.
+(* -- | Find the dependencies of an applicative task. *)
+(* dependencies :: Task Applicative k v -> [k] *)
+(* dependencies task = getConst $ run task (\k -> Const [k]) *)
 
-Fixpoint busyFetch (tasks : TotalTasks Monad) {n : nat} (k : Fin.t n):
-  (State (Store unit (Fin.t n) nat) nat) :=
-    (* let t := (run task) (fun k' => busyFetch task k') k in *)
-    match tasks n with
-    | Nothing  => gets (getValue k)
-    | Just task => (run task) (busyFetch tasks) >>= fun v => undefined
-    end.
+Definition dependencies {K V : Type} (task : Task Applicative K V) : list K :=
+  getConst ((run task) (fun k => mkConst (cons k nil))).
+
+Definition deps_fib (k : nat) : list (Fin.t k) :=
+  match fibonacci k with
+  | Nothing => nil
+  | Just task => dependencies task
+  end.
+
+(* Definition deps_fib (k : nat) : list nat := *)
+(*   match fibonacci k with *)
+(*   | Nothing => nil *)
+(*   | Just task => map (fun x => proj1_sig (Fin.to_nat x)) (dependencies task) *)
+(*   end. *)
+
+Eval compute in deps_fib (S (S 1)).
+
+(* dependencies (fib (S (S n)) == [n, S n] *)
+
+Theorem deps_fib_correct : forall n, deps_fib (S (S n)) = (FS (FS n) :: FS n :: nil).
+Proof.
+  intros.
+  induction n.
+  * unfold deps_fib.
+    simpl. reflexivity.
+  * unfold deps_fib.
+    simpl.
