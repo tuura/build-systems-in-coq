@@ -23,11 +23,11 @@ Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
 (* Declare the types of the constraint, key and value to be implicit *)
 Arguments run {C} {K} {V} _ {F} {CF}.
 
-Definition TotalTasks (C : (Type -> Type) -> Type) :=
+Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
 
 Definition depth {C : (Type -> Type) -> Type} {F : (Type -> Type)} `{CF: C F}
-           (tasks : TotalTasks C) (key : nat) : nat :=
+           (tasks : AcyclicTasks C) (key : nat) : nat :=
   match tasks key with
   | Nothing => 0
   | Just _  => key
@@ -87,7 +87,7 @@ Check Fin.L.
 Print Fin.L.
 
 Definition fibonacci :
-  TotalTasks Applicative := fun n =>
+  AcyclicTasks Applicative := fun n =>
   match n with
   | 0  => Nothing
   | 1  => Nothing
@@ -119,12 +119,3 @@ Definition deps_fib (k : nat) : list (Fin.t k) :=
 Eval compute in deps_fib (S (S 1)).
 
 (* dependencies (fib (S (S n)) == [n, S n] *)
-
-Theorem deps_fib_correct : forall n, deps_fib (S (S n)) = (FS (FS n) :: FS n :: nil).
-Proof.
-  intros.
-  induction n.
-  * unfold deps_fib.
-    simpl. reflexivity.
-  * unfold deps_fib.
-    simpl.

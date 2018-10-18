@@ -269,18 +269,18 @@ Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Total Tasks restrict the key of the dependencies to be strictly
+(* Acyclic Tasks restrict the key of the dependencies to be strictly
 * smaller than the target key. We will fix the type of
-* keys of total tasks to natural numbers for clarity.*)
-Definition TotalTasks (C : (Type -> Type) -> Type) :=
+* keys of acyclic tasks to natural numbers for clarity.*)
+Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Given a total task description, a target key, and a store, the total build
+(* Given a acyclic task description, a target key, and a store, the acyclic build
  * system returns a new store and is guarantied to terminates. *)
-Definition TotalBuild (C : (Type -> Type) -> Type) (I : Type) :=
-  TotalTasks C -> K -> Store I K V -> Store I K V.
+Definition AcyclicBuild (C : (Type -> Type) -> Type) (I : Type) :=
+  AcyclicTasks C -> K -> Store I K V -> Store I K V.
 \end{minted}
 \vspace{-3mm}
 \caption{Definitions of key build systems abstractions.}\label{fig-defs}
@@ -324,23 +324,23 @@ consideration is acyclic. The Haskell model leaves it on the user
 to make sure that their tasks terminate.
 
 \vspace{-3mm}
-\subsection{Total Tasks}
+\subsection{Acyclic Tasks}
 
 We attempt to modify the build systems framework and encode the always terminating
-task descriptions as the~\hs{TotalTasks} datatype. In contrasts with the regular,
-possibly non-terminating \hs{Tasks}, the total task descriptions are represented as
+task descriptions as the~\hs{AcyclicTasks} datatype. In contrasts with the regular,
+possibly non-terminating \hs{Tasks}, acyclic task descriptions are represented as
 a dependent function and the type of keys depends on the value of the target key:
 \hs{Maybe (Task C (Fin.t k) nat)}. This means that every call of the \hs{fetch}
 callback can only be performed with a smaller key. We are trying to facilitate the
 proofs of termination of the~\hs{busy} build system from~\cite{Mokhov2018icfp}
-by establishing a well-founded order on~\hs{TotalTasks}:
+by establishing a well-founded order on~\hs{AcyclicTasks}:
 
 \vspace{-1mm}
 \begin{minted}{coq}
 Definition depth
   {C : (Type -> Type) -> Type}
   {F : (Type -> Type)} `{CF: C F}
-  (key : nat) (tasks : TotalTasks C) : nat :=
+  (key : nat) (tasks : AcyclicTasks C) : nat :=
   match tasks key with
   | Nothing => 0
   | Just _  => key
@@ -359,7 +359,7 @@ used in the~\hs{busy} build system.
 \begin{minted}{coq}
 Program Fixpoint busyFetch
   {C : (Type -> Type) -> Type}
-  (tasks : TotalTasks C) (k : nat)
+  (tasks : AcyclicTasks C) (k : nat)
   {measure (depth tasks k)}:
   (State (Store unit nat nat) nat) :=
     match tasks k  with
@@ -371,8 +371,8 @@ Program Fixpoint busyFetch
 \vspace{-1mm}
 
 The definition doesn't type check, but gives
-an idea of proof of termination of the~\hs{busy} build system for total tasks:
-if the~\hs{TotalTasks} contains~\hs{Nothing} then the key is an input, hence the
+an idea of proof of termination of the~\hs{busy} build system for acyclic tasks:
+if the~\hs{AcyclicTasks} contains~\hs{Nothing} then the key is an input, hence the
 associated value is retuned; otherwise the~\hs{task} is run with the~\hs{busyFetch}
 callback, supposingly supplying a proof that the recursive call is performed on a
 strictly smaller key. Unfortunately, we are struggling with technical details and
@@ -389,7 +389,7 @@ Coq's type system is reach enough to emulate these features and we have been abl
 to define all the required abstractions. However, since Coq is a total language,
 defining even the simplest build system~\hs{busy} requires a lot more
 effort than anticipated. Even restricting the~\hs{Tasks} abstraction to
-supposingly always terminating~\hs{TotalTasks} has not made the problem easier.
+supposingly always terminating~\hs{AcyclicTasks} has not made the problem easier.
 
 The main take-away from this experience for us is the necessity to rigorously
 prove the totality of a build system before even attempting to prove its correctness.
