@@ -149,7 +149,11 @@
 The gene pool of software build systems and various incremental computation
 frameworks is becoming richer every day. These complex build systems and
 frameworks use subtle algorithms and are mission-critical, yet to the best of
-our knowledge there is no machine-checked validation of their correctness.
+our knowledge they come with no formal proofs of correctness.
+
+%  are no formal verification
+%  their correctness has not
+% there is no machine-checked validation of their correctness.
 
 A recent ICFP paper ``Build Systems \`a la Carte'' presented a definition of
 correctness for build systems, and modelled several major build systems in
@@ -217,11 +221,11 @@ systems in Coq.
 What is a build system? Below we briefly recite main build systems notions
 using the vocabulary from~\cite{Mokhov2018icfp}.
 
-Build systems operate on a \emph{key/value store}, where the keys are typically
+Build systems operate on \emph{key/value stores}, where the keys are typically
 filenames and the values are file contents. Some values must be provided by
 the user as \emph{input}, e.g. by editing \emph{source files}, whereas
 \emph{output} values are produced by the build system by executing \emph{build
-tasks}, also called \emph{rules}.
+tasks} (also called \emph{build rules}).
 
 As well as the key/value mapping, the store also contains \emph{build
 information} maintained by the build system itself, which is persistently stored
@@ -236,7 +240,7 @@ store, and returns a new store in which the target key and all its dependencies
 have an up to date value.
 
 The next Section~\ref{sec-abstractions} formalises these notions in Coq,
-followed by a discussion in Section~\ref{sec-discussion}.
+followed by a brief discussion in Section~\ref{sec-discussion}.
 
 \vspace{-3mm}
 \section{Encoding build systems in Coq}\label{sec-abstractions}
