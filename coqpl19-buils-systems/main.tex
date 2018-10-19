@@ -274,8 +274,8 @@ Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
 \vspace{-1mm}
 \begin{minted}{coq}
 (* A task in AcyclicTasks can only depend on keys that are smaller than its own key. *)
-Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
-  forall (k : nat), Maybe (Task C (Fin.t k) nat).
+Definition AcyclicTasks (C : (Type -> Type) -> Type) (V : Type):=
+  forall (k : nat), Maybe (Task C (Fin.t k) V).
 \end{minted}
 % \vspace{-1mm}
 % \begin{minted}{coq}
@@ -383,7 +383,7 @@ can depend only on keys that are smaller than its own key. Below we re-define
 
 \vspace{-1mm}
 \begin{minted}{coq}
-Definition@\,@fib@\,@:@\,@AcyclicTasks@\,@Applicative@\,@:=@\,@fun n =>
+Definition@\,@fib@\,@:@\,@AcyclicTasks@\,@Applicative@\,@nat:=@\,@fun n =>
   match n with
   | 0  => Nothing
   | 1  => Nothing
