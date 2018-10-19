@@ -341,9 +341,12 @@ statically~\cite{free-applicatives}, without providing any actual values:
 \vspace{-1mm}
 \begin{minted}{coq}
 Definition dependencies {K V : Type}
-  (task : Task Applicative K V) :
-  list K := getConst
-    ((run task) (fun k => mkConst (cons k nil))).
+  (task : Maybe (Task Applicative K V)) : list K :=
+  match task with
+  | Nothing => nil
+  | Just act => getConst
+    ((run act) (fun k => mkConst (cons k nil)))
+  end.
 \end{minted}
 \vspace{-1mm}
 
@@ -351,7 +354,7 @@ Definition dependencies {K V : Type}
 The function~\hs{dependencies} instantiates~\hs{F} to~\hs{Const (list K)} and
 executes the task with a~\hs{fetch} callback that just records the fetched key.
 The keys then get accumulated to a list by the \hs{Applicative} instance
-of~\hs{Const K} data type.
+of~\hs{Const (list K)} data type.
 
 The~\hs{fibonacci} task description is applicative, and hence can be statically
 analysed. The correctness of the function \hs{dependencies} is trivially proved
@@ -360,7 +363,8 @@ in this specific case:
 \vspace{-1mm}
 \begin{minted}{coq}
 Theorem deps_fib_correct : forall n,
-  deps_fib (S (S n)) = (S n :: n :: nil).
+  dependencies (fibonacci (S (S n))) =
+  (S n :: n :: nil).
 Proof. reflexivity. Qed.
 \end{minted}
 \vspace{-1mm}
@@ -373,21 +377,15 @@ may need to rebuild it, which may trigger further recursive rebuilds.
 Termination is no longer guaranteed in such settings. To tackle this issue, we
 introduce the notion of \emph{acyclic task descriptions}.
 
-% At this point, we have not managed to encode even the simples build
-% system~\hs{busy}, because Coq's termination checker is a hard judge to persuade.
+In contrast to the regular, possibly cyclic \hs{Tasks}, a task that belongs
+to \hs{AcyclicTasks} can only depend on keys that are smaller than its own key,
+which is expressed as dependently-typed function (see the bottom of
+Fig.~\ref{fig-defs}).
 
-% \vspace{-3mm}
-% \subsection{Acyclic Tasks}
-
-We extend the framework presented in~\cite{Mokhov2018icfp} by introducing the
-type of \hs{AcyclicTasks}. In contrast to the regular, possibly cyclic
-\hs{Tasks}, a task that belongs to \hs{AcyclicTasks} can only depend on keys
-that are smaller than its own key, which is expressed as dependently-typed
-function.
-
-% : the type of keys depends on the value of the target key.
-% Thus, every call of the \hs{fetch} callback can only be performed with a smaller key.
-% The Fibonacci function can also be represented as an acyclic task:
+The Fibonacci sequence can be reexpressed as an acyclic task in a following way.
+The fetching callback now expect a bounded natural number of type~\hs{Fin.t k},
+thus we coerce the subterms~\coq{m} and~\coq{S m} and supply those as arguments
+to~\hs{fetch}.
 
 \vspace{-1mm}
 \begin{minted}{coq}
@@ -398,43 +396,34 @@ Definition fibonacci :
   | 1  => Nothing
   | S (S m) => Just
       {| run := fun _ _ => fun fetch =>
-           Nat.add <$> fetch (from_nat (S m))
-                   <*> fetch (inject1 (from_nat m)) |}
+         Nat.add <$> fetch (from_nat (S m))
+                 <*> fetch (inject1 (from_nat m)) |}
   end.
 \end{minted}
 \vspace{-1mm}
 
 \vspace{-3mm}
-\section{Discussion}\label{sec-discussion}
+\section{Discussion and Future Work}\label{sec-discussion}
 \vspace{-1mm}
 
-The Haskell-embedded framework for modelling build systems presented in the
-paper~\cite{Mokhov2018icfp} exploits GHC's~\emph{Rank2Types}
+The Haskell-embedded framework for modelling build systems presented in~\cite{Mokhov2018icfp} exploits GHC's~\emph{Rank2Types}
 and~\emph{ConstraintKinds} to achieve high level of brevity and code reuse.
-Coq's type system is reach enough to emulate these features and we have been able
-to define all the required abstractions. However, since Coq is a total language,
-defining even the simplest build system~\hs{busy} requires a lot more
-effort than anticipated.
+The framework gives a computational definition of correctness for build systems.
+A Coq formalisation of the model would now allow for a formal proof of correctness.
 
-Even restricting the~\hs{Tasks} abstraction to
-supposingly always terminating~\hs{AcyclicTasks} has not made the problem easier.
+The essence of every build system lies in its specific fetching callback. The
+simplest build system of~\cite{Mokhov2018icfp},~\hs{busy}, defines it as a recursive
+function in the~\hs{State (Store () K V)} monad and is not accepted by Coq's
+termination checker if encoded naively. Our nearest objective is to implement
+the~\hs{busy} build system for~\hs{AcyclicTasks}. To do that, we will probably
+need to establish a well-founded order relation on the acyclic tasks, which might
+probably be derived from the one on their keys.
 
-The main take-away from this experience for us is the necessity to rigorously
-prove the totality of a build system before even attempting to prove its correctness.
-
-% %% Acknowledgments
-% \begin{acks}                            %% acks environment is optional
-
-% \end{acks}
-
+Bearing all that in mind, the main take-away from this experience is the
+necessity to rigorously prove termination of a build system before even
+attempting to prove its correctness.
 
 %% Bibliography
 \bibliography{biblio}
-
-% %% Appendix
-% \appendix
-% \section{Appendix}
-
-% Text of appendix \ldots
 
 \end{document}
