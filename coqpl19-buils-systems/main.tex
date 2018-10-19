@@ -123,24 +123,28 @@
 %% Many elements are not rendered, but should be provided for metadata
 %% extraction tools.
 
-
-\author{Georgy Lukyanov}
+\author{Author names}
 \affiliation{
-  \department{School of Engineering}
-  \institution{Newcastle University}
-  \city{Newcastle upon Tyne}
-  \country{United Kingdom}
+  \institution{Removed for blind review}
 }
-\email{g.lukyanov2@ncl.ac.uk}
 
-\author{Andrey Mokhov}
-\affiliation{
-  \department{School of Engineering}
-  \institution{Newcastle University}
-  \city{Newcastle upon Tyne}
-  \country{United Kingdom}
-}
-\email{andrey.mokhov@ncl.ac.uk}
+% \author{Georgy Lukyanov}
+% \affiliation{
+%   \department{School of Engineering}
+%   \institution{Newcastle University}
+%   \city{Newcastle upon Tyne}
+%   \country{United Kingdom}
+% }
+% \email{g.lukyanov2@ncl.ac.uk}
+
+% \author{Andrey Mokhov}
+% \affiliation{
+%   \department{School of Engineering}
+%   \institution{Newcastle University}
+%   \city{Newcastle upon Tyne}
+%   \country{United Kingdom}
+% }
+% \email{andrey.mokhov@ncl.ac.uk}
 
 %% Abstract
 %% Note: \begin{abstract}...\end{abstract} environment must come
@@ -239,85 +243,75 @@ A \emph{build system} takes a task description, a \emph{target} key, and a
 store, and returns a new store in which the target key and all its dependencies
 have an up to date value.
 
-The next Section~\ref{sec-abstractions} formalises these notions in Coq,
-followed by a brief discussion in Section~\ref{sec-discussion}.
+% The next Section~\ref{sec-abstractions} formalises these notions in Coq,
+% followed by a brief discussion in Section~\ref{sec-discussion}.
 
 \vspace{-3mm}
 \section{Encoding build systems in Coq}\label{sec-abstractions}
-\vspace{-1mm}
 
 \begin{figure*}[t]
 \begin{minted}{coq}
 (* An abstract store containing a key/value map and persistent build information *)
-Inductive Store (I K V : Type) := mkStore { info : I; values : K -> V}.
+Inductive Store (I K V : Type) := mkStore { info : I; values : K -> V }.
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Task describes how to build values of type V from keys of type K *)
+(* A Task describes how to build values of type V given a way to find values of its dependencies *)
 Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
-  run : forall {F} `{CF: C F}, (K -> F V) -> F V}.
+  run : forall {F} `{CF: C F}, (K -> F V) -> F V }.
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Tasks associates a Task to every non-input key; input keys are associated with Nothing. *)
-Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) :=
-  K -> Maybe (Task C K V).
+(* Tasks associates a Task to every output key; input keys are associated with Nothing. *)
+Definition Tasks (C : (Type -> Type) -> Type) (K V : Type) := K -> Maybe (Task C K V).
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Given a task description, a target key, and a store, the build
- * system returns a new store in which the value of the target key is up to date. *)
+(* Given a task description and a target key, a build system transforms the store. *)
 Definition Build (C : (Type -> Type) -> Type) (I K V : Type) :=
   Tasks C K V -> K -> Store I K V -> Store I K V.
 \end{minted}
 \vspace{-1mm}
 \begin{minted}{coq}
-(* Acyclic Tasks restrict the key of the dependencies to be strictly smaller than
- * the target key. We will fix the type of keys of acyclic tasks to natural numbers for clarity.*)
+(* A task in AcyclicTasks can only depend on keys that are smaller than its own key. *)
 Definition AcyclicTasks (C : (Type -> Type) -> Type) :=
   forall (k : nat), Maybe (Task C (Fin.t k) nat).
 \end{minted}
-\vspace{-1mm}
-\begin{minted}{coq}
-(* Given a acyclic task description, a target key, and a store, the acyclic build
- * system returns a new store and is guarantied to terminates. *)
-Definition AcyclicBuild (C : (Type -> Type) -> Type) (I : Type) :=
-  AcyclicTasks C -> K -> Store I K V -> Store I K V.
-\end{minted}
-\vspace{-3mm}
-\caption{Definitions of key build systems abstractions.}\label{fig-defs}
-\vspace{-5mm}
+% \vspace{-1mm}
+% \begin{minted}{coq}
+% (* Given a acyclic task description, a target key, and a store, the acyclic build
+%  * system returns a new store and is guarantied to terminates. *)
+% Definition AcyclicBuild (C : (Type -> Type) -> Type) (I : Type) :=
+%   AcyclicTasks C -> K -> Store I K V -> Store I K V.
+% \end{minted}
+\vspace{-4mm}
+\caption{Build system abstractions in Coq.}\label{fig-defs}
+\vspace{-4mm}
 \end{figure*}
 
-% \vspace{-3mm}
-% \subsection{The Task abstraction}
-
-Building on the abstractions from~\cite{Mokhov2018icfp}, we model \hs{Store} as
+Following the approach in~\cite{Mokhov2018icfp}, we model \hs{Store} as
 an abstract data type parameterised by the type of keys~\hs{K}, values~\hs{V},
 and build information~\hs{I} (see the Fig.~\ref{fig-defs}). A \hs{Task}
 describes how to compute a value of a key (\hs{F V}), given a way to find values
 of its dependencies (the callback \hs{K -> F V}). The type of effect~\hs{F}
 associated with computing values is constrained by~\hs{C}, which emulates
 Haskell's kind \hs{Constraint} and can be instantiated with concrete constraints,
-such as \hs{Functor}, \hs{Applicative} or \hs{Monad}.
+such as \hs{Applicative} (for statically known task dependencies, e.g. as in \Make)
+and \hs{Monad} (for dynamic dependencies, which become known only during the
+execution of a task, as in \Shake).
 
-A \hs{Tasks} associates a task to a ~\emph{target key}.
-If the target key is associated to an~\emph{input}
-value --- there is~\hs{Nothing} to be done. Otherwise, the~\hs{run} function
-contains a callback of type \hs{K -> F V} (conventionly called~\hs{fetch}),
-which, given a key, produces a value and possibly couses some side-effects.
-These side effects are of immense value here and to have flexible control over them
-is the exact reason to keep \hs{F} polymorphic.
+A \hs{Tasks} associates a task to a every output key, and \hs{Nothing} to input
+keys. Just like a single \hs{Task}, the compound task description \hs{Tasks} is
+polymorphic over the effect type~\hs{F}. It is very important to have the
+flexibility of interpreting the very same task description in
+different~\hs{F}'s: (i) a build system typically fixes \hs{F} to some state
+monad in order to side-effect the \hs{Store} during the build; (ii) furthermore,
+to extract accurate \emph{task dependencies}, a task can be executed in a
+\emph{tracking} \hs{Applicative} (e.g. \hs{Const}) or \hs{Monad}
+(e.g. \hs{Writer}).
 
-The polymorphic \hs{F} is the corner stone of the Build Systems \`a la Carte
-framework: given a~\emph{single} task description, we want to explore~\emph{many}
-build systems that can build it, exploiting distinctive features of various
-type constructors \hs{F}. In the number of cases, \hs{F} will be instantiated
-with \hs{State s} for some build-state \hs{s}, or it may become the
-\hs{Const K} datatype which allows to statically calculate the dependencies of certain
-types of \hs{Task}'s.
-
-As an example, consider a description of the tasks to compute Fibonacci numbers:
+As an example, consider the following task description for computing generalised
+Fibonacci sequence:
 
 \vspace{-1mm}
 \begin{minted}{coq}
@@ -334,12 +328,15 @@ Definition fibonacci : Tasks Applicative nat nat :=
 \end{minted}
 \vspace{-1mm}
 
-The keys~\coq{0} and~\coq{1} correspond to inputs, thus no dependencies need to
-be fetched. The rest of the keys are associated to non-trivial tasks, that fetch
-the two previous Fibonacci numbers and return their sum.
+\noindent
+The keys~\coq{0} and~\coq{1} are inputs (i.e. the user may choose
+how to initialise the first two elements of the generalised Fibonacci sequence),
+and are therefore associated to \hs{Nothing}. All other keys are associated to
+non-trivial tasks that, given the callback \hs{fetch}, use it to find the values
+of the two previous Fibonacci numbers in the sequence and return their sum.
 
-Dependencies of applicative tasks can be calculated statically, without proving
-an actual instance of~\hs{Store}:
+Dependencies of applicative tasks can be calculated
+statically~\cite{free-applicatives}, without providing any actual values:
 
 \vspace{-1mm}
 \begin{minted}{coq}
@@ -350,14 +347,15 @@ Definition dependencies {K V : Type}
 \end{minted}
 \vspace{-1mm}
 
-The~\coq{dependencies} function instantiates the~\hs{F} type constructor
-with~\hs{Const (list K)} and executes the task with a~\hs{fetch} callback that
-just reports the fetched key. The keys then get accumulated to a list by the
-\hs{Applicative} instance of~\hs{Const K} datatype.
+\noindent
+The function~\hs{dependencies} instantiates~\hs{F} to~\hs{Const (list K)} and
+executes the task with a~\hs{fetch} callback that just records the fetched key.
+The keys then get accumulated to a list by the \hs{Applicative} instance
+of~\hs{Const K} data type.
 
-The~\coq{fibonacci} task description is applicative, therefore it can be
-statically analysed for dependencies, and the correctness of the dependency
-function can be trivially proved for this specific case:
+The~\hs{fibonacci} task description is applicative, and hence can be statically
+analysed. The correctness of the function \hs{dependencies} is trivially proved
+in this specific case:
 
 \vspace{-1mm}
 \begin{minted}{coq}
@@ -367,24 +365,29 @@ Proof. reflexivity. Qed.
 \end{minted}
 \vspace{-1mm}
 
-Task descriptions trap the recursion inside the fetching callback. In case of
-the~\coq{dependencies} function, fetching callback is not recursive, thus the
-dependencies ``build system'' always terminates. However, proper build systems
-described in~\cite{Mokhov2018icfp} require a recursive fetching callback.
-At this point, we have not managed to encode even the simples build
-system~\hs{busy}, because Coq's termination checker is a hard judge to persuade.
-To tackle this issue, we attempt to formalise the notion of always-terminating
-acyclic task descriptions.
+Task descriptions trap the recursion inside the \hs{fetch} callback. In case of
+the function~\hs{dependencies}, the callback is not recursive, and the function
+always terminates. However, build systems described in~\cite{Mokhov2018icfp}
+require a \emph{recursive callback}: indeed, to find the value of a dependency we
+may need to rebuild it, which may trigger further recursive rebuilds.
+Termination is no longer guaranteed in such settings. To tackle this issue, we
+introduce the notion of \emph{acyclic task descriptions}.
 
-\vspace{-3mm}
-\subsection{Acyclic Tasks}
+% At this point, we have not managed to encode even the simples build
+% system~\hs{busy}, because Coq's termination checker is a hard judge to persuade.
 
-We attempt to modify the build systems framework and encode the always terminating
-task descriptions as the~\hs{AcyclicTasks} datatype. In contrasts with the regular,
-possibly non-terminating \hs{Tasks}, acyclic task descriptions are represented as
-a dependent function: the type of keys depends on the value of the target key.
-Thus, every call of the \hs{fetch} callback can only be performed with a smaller key.
-The Fibonacci function can also be represented as an acyclic task:
+% \vspace{-3mm}
+% \subsection{Acyclic Tasks}
+
+We extend the framework presented in~\cite{Mokhov2018icfp} by introducing the
+type of \hs{AcyclicTasks}. In contrast to the regular, possibly cyclic
+\hs{Tasks}, a task that belongs to \hs{AcyclicTasks} can only depend on keys
+that are smaller than its own key, which is expressed as dependently-typed
+function.
+
+% : the type of keys depends on the value of the target key.
+% Thus, every call of the \hs{fetch} callback can only be performed with a smaller key.
+% The Fibonacci function can also be represented as an acyclic task:
 
 \vspace{-1mm}
 \begin{minted}{coq}
