@@ -315,7 +315,7 @@ Fibonacci sequence:
 
 \vspace{-1mm}
 \begin{minted}{coq}
-Definition fibonacci : Tasks Applicative nat nat :=
+Definition fib : Tasks Applicative nat nat :=
   fun n =>
   match n with
   | 0  => Nothing
@@ -335,6 +335,7 @@ and are therefore associated to \hs{Nothing}. All other keys are associated to
 non-trivial tasks that, given the callback \hs{fetch}, use it to find the values
 of the two previous Fibonacci numbers in the sequence and return their sum.
 
+\noindent
 Dependencies of applicative tasks can be calculated
 statically~\cite{free-applicatives}, without providing any actual values:
 
@@ -351,20 +352,20 @@ Definition dependencies {K V : Type}
 \vspace{-1mm}
 
 \noindent
-The function~\hs{dependencies} instantiates~\hs{F} to~\hs{Const (list K)} and
-executes the task with a~\hs{fetch} callback that just records the fetched key.
-The keys then get accumulated to a list by the \hs{Applicative} instance
-of~\hs{Const (list K)} data type.
+The function~\hs{dependencies} instantiates~\hs{F}
+to~\hs{Const}~\hs{(}\hs{list}~\hs{K)} and executes the task with a~\hs{fetch}
+callback that just records the fetched key. The keys then get accumulated to a
+list by the \hs{Applicative} instance of the data
+type~\hs{Const}~\hs{(}\hs{list}~\hs{K)}.
 
-The~\hs{fibonacci} task description is applicative, and hence can be statically
-analysed. The correctness of the function \hs{dependencies} is trivially proved
-in this specific case:
+The task description~\hs{fib} is applicative, and can be statically analysed.
+The correctness of the function \hs{dependencies} is trivially proved in this
+specific case:
 
 \vspace{-1mm}
 \begin{minted}{coq}
-Theorem deps_fib_correct : forall n,
-  dependencies (fibonacci (S (S n))) =
-  (S n :: n :: nil).
+Theorem dependencies_fib_correct : forall n,
+  dependencies (fib (S (S n))) = (S n@\,@::@\,@n@\,@::@\,@nil).
 Proof. reflexivity. Qed.
 \end{minted}
 \vspace{-1mm}
@@ -375,22 +376,14 @@ always terminates. However, build systems described in~\cite{Mokhov2018icfp}
 require a \emph{recursive callback}: indeed, to find the value of a dependency we
 may need to rebuild it, which may trigger further recursive rebuilds.
 Termination is no longer guaranteed in such settings. To tackle this issue, we
-introduce the notion of \emph{acyclic task descriptions}.
-
-In contrast to the regular, possibly cyclic \hs{Tasks}, a task that belongs
-to \hs{AcyclicTasks} can only depend on keys that are smaller than its own key,
-which is expressed as dependently-typed function (see the bottom of
-Fig.~\ref{fig-defs}).
-
-The Fibonacci sequence can be reexpressed as an acyclic task in a following way.
-The fetching callback now expect a bounded natural number of type~\hs{Fin.t k},
-thus we coerce the subterms~\coq{m} and~\coq{S m} and supply those as arguments
-to~\hs{fetch}.
+introduce the notion of \emph{acyclic task descriptions}. In contrast to
+possibly cyclic \hs{Tasks}, a task that belongs to \hs{AcyclicTasks}
+can depend only on keys that are smaller than its own key. Below we re-define
+\hs{fib} as an \hs{AcyclicTasks}:
 
 \vspace{-1mm}
 \begin{minted}{coq}
-Definition fibonacci :
-  AcyclicTasks Applicative := fun n =>
+Definition@\,@fib@\,@:@\,@AcyclicTasks@\,@Applicative@\,@:=@\,@fun n =>
   match n with
   | 0  => Nothing
   | 1  => Nothing
@@ -402,26 +395,43 @@ Definition fibonacci :
 \end{minted}
 \vspace{-1mm}
 
-\vspace{-3mm}
+\noindent
+The \hs{fetch} callback corresponding to the key \hs{k} now expects a bounded
+natural number of type~\hs{Fin.t}~\hs{k}, which requires \emph{dependent types},
+as seen in the type of \hs{AcyclicTasks} in Fig.~\ref{fig-defs}(bottom). Armed
+with acyclic tasks, we can prove termination and correctness of build systems
+(on-going work).
+
+% thus we coerce the subterms~\coq{m} and~\coq{S m} and supply those as arguments
+% to~\hs{fetch}.
+
+\vspace{-2mm}
 \section{Discussion and Future Work}\label{sec-discussion}
 \vspace{-1mm}
 
-The Haskell-embedded framework for modelling build systems presented in~\cite{Mokhov2018icfp} exploits GHC's~\emph{Rank2Types}
-and~\emph{ConstraintKinds} to achieve high level of brevity and code reuse.
-The framework gives a computational definition of correctness for build systems.
-A Coq formalisation of the model would now allow for a formal proof of correctness.
+The Haskell-embedded framework for modelling build systems presented
+in~\cite{Mokhov2018icfp} relies on advanced GHC extensions such
+as~\emph{Rank2Types} and~\emph{ConstraintKinds} in a crucial way for defining
+key properties and components of build systems in a high-level and reusable API.
+As we have seen, Coq's expressive power is sufficient for encoding this API;
+furthermore, Coq provides additional features, such as dependent types, that
+allow us make correctness proofs about the API.
 
-The essence of every build system lies in its specific fetching callback. The
-simplest build system of~\cite{Mokhov2018icfp},~\hs{busy}, defines it as a recursive
-function in the~\hs{State (Store () K V)} monad and is not accepted by Coq's
-termination checker if encoded naively. Our nearest objective is to implement
-the~\hs{busy} build system for~\hs{AcyclicTasks}. To do that, we will probably
-need to establish a well-founded order relation on the acyclic tasks, which might
-probably be derived from the one on their keys.
+The essence of every build system lies in its specific \hs{fetch} callback. The
+simplest build system from~\cite{Mokhov2018icfp}, \hs{busy}, defines \hs{fetch}
+as a recursive function in the~\hs{State}~\hs{(Store}~\hs{()}~\hs{K}~\hs{V)}
+monad and is not accepted by Coq's termination checker if encoded naively. More
+sophisticated build systems involve further complexity related to achieving
+minimality (never executing unnecessary tasks), dynamic dependencies (\Shake),
+and cloud builds (\Bazel). Our goal is to prove that the models of these
+build systems presented in~\cite{Mokhov2018icfp} are correct and, crucially,
+\emph{to do that in a way that does not sacrifice the simplicity of these models}.
+As non experts in Coq, we have not yet been able to achieve this goal. We hope
+that the Coq community can steer us towards the right abstractions and tools.
 
-Bearing all that in mind, the main take-away from this experience is the
-necessity to rigorously prove termination of a build system before even
-attempting to prove its correctness.
+% Bearing all that in mind, the main take-away from this experience is the
+% necessity to rigorously prove termination of a build system before even
+% attempting to prove its correctness.
 
 %% Bibliography
 \bibliography{biblio}
