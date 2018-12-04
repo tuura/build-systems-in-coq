@@ -26,14 +26,7 @@ Arguments run {C} {K} {V} _ {F} {CF}.
 Definition AcyclicTasks (C : (Type -> Type) -> Type) (V : Type) :=
   forall (k : nat), Maybe (Task C {x:nat | k>x} V).
 
-Definition depth {C : (Type -> Type) -> Type} {V : Type} {F : (Type -> Type)} `{CF: C F}
-           (tasks : AcyclicTasks C V) (key : nat) : nat :=
-  match tasks key with
-  | Nothing => 0
-  | Just _  => key
-  end.
-
-Require Import Coq.Init.Specif.
+(* Fibonacci *)
 
 Lemma ok_k' (k:nat) : S k > k.
 Proof. auto. Qed.
@@ -63,18 +56,10 @@ Definition fibonacci :
 Definition dependencies {K V : Type} (task : Task Applicative K V) : list K :=
   getConst ((run task) (fun k => mkConst (cons k nil))).
 
-(* Definition deps_fib (k : nat) : list (Fin.t k) := *)
-(*   match fibonacci k with *)
-(*   | Nothing => nil *)
-(*   | Just task => dependencies task *)
-(*   end. *)
-
 Definition deps_fib (k : nat) : list nat :=
   match fibonacci k with
   | Nothing => nil
   | Just task => map (fun x => proj1_sig x) (dependencies task)
   end.
 
-Eval compute in deps_fib (4).
-
-(* dependencies (fib (S (S n)) == [n, S n] *)
+Eval compute in deps_fib 4.
