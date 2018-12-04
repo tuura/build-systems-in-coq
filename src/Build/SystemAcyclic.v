@@ -25,10 +25,10 @@ Definition undefined {a : Type} : a. Admitted.
 
 Program Fixpoint busyFetch (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat) 
   {measure k}
-  : (nat * State (Store unit nat V) V) :=
+  : (Maybe nat * State (Store unit nat V) V) :=
   match tasks k with
-  | Nothing   => (undefined,gets (getValue k))
-  | Just task => (k,
+  | Nothing   => (Nothing,gets (getValue k))
+  | Just task => (Just k,
     (run task)
     (fun n => snd (busyFetch V tasks (proj1_sig n)))
     >>=
