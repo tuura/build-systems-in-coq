@@ -24,7 +24,7 @@ Inductive Task (C : (Type -> Type) -> Type) (K V : Type) := {
 Arguments run {C} {K} {V} _ {F} {CF}.
 
 Definition AcyclicTasks (C : (Type -> Type) -> Type) (V : Type) :=
-  forall (k : nat), Maybe (Task C  ({x:nat | k>x}) V).
+  forall (k : nat), Maybe (Task C {x:nat | k>x} V).
 
 Definition depth {C : (Type -> Type) -> Type} {V : Type} {F : (Type -> Type)} `{CF: C F}
            (tasks : AcyclicTasks C V) (key : nat) : nat :=
@@ -75,6 +75,6 @@ Definition deps_fib (k : nat) : list nat :=
   | Just task => map (fun x => proj1_sig x) (dependencies task)
   end.
 
-Eval compute in deps_fib (S (S 1)).
+Eval compute in deps_fib (4).
 
 (* dependencies (fib (S (S n)) == [n, S n] *)
