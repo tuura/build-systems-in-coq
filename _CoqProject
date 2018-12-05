@@ -8,9 +8,7 @@ src/Control/Applicative.v
 src/Control/Monad.v
 src/Control/Monad/State.v
 src/Data/Functor/Const.v
+src/Data/Functor/Identity.v
 src/Prelude.v
-src/Build.v
-src/Build/Task.v
-src/Build/Task/Functor.v
 src/Build/Store.v
-src/Build/System.v
+src/Build/AcyclicTask.v

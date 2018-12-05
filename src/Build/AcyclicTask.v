@@ -44,7 +44,7 @@ Definition fibonacci :
   | 0  => Nothing
   | 1  => Nothing
   | S (S m) => Just
-      {| run := fun _ _ => fun fetch => 
+      {| run := fun _ _ => fun fetch =>
            Nat.add <$> fetch (ok_k (S m))
                    <*> fetch (ok_kk (m)) |}
   end.

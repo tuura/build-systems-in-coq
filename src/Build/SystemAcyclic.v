@@ -1,5 +1,6 @@
 Require Import Data.Maybe.
 Require Import Data.Functor.
+Require Import Data.Functor.Identity.
 Require Import Control.Applicative.
 Require Import Control.Monad.
 Require Import Control.Monad.State.
@@ -23,7 +24,9 @@ Definition undefined {a : Type} : a. Admitted.
 (*         Nothing   -> gets (getValue k) *)
 (*         Just task -> do v <- task fetch; modify (putValue k v); return v *)
 
-Program Fixpoint busyFetch (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat) 
+(* Implementation of busyFetch by Alexandre Moine *)
+(* Program Fixpoint requires the result to be wrapped in an inductive type. *)
+Program Fixpoint busyFetch (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat)
   {measure k}
   : (Maybe nat * State (Store unit nat V) V) :=
   match tasks k with
@@ -34,6 +37,32 @@ Program Fixpoint busyFetch (V : Type) (tasks : AcyclicTasks Applicative V) (k:na
     >>=
     (fun v => modify (putValue k v) >> pure v))
   end.
+
+(* Looks like even the Identity type is good enough for Coq *)
+Program Fixpoint busyFetch' (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat)
+  {measure k}
+  : Identity (State (Store unit nat V) V) :=
+  match tasks k with
+  | Nothing   => Id _ (gets (getValue k))
+  | Just task => Id _ (
+    (run task)
+    (fun n => getIdentity (busyFetch' V tasks (proj1_sig n)))
+    >>=
+    (fun v => modify (putValue k v) >> pure v))
+  end.
+
+(* But for some reason, Coq can't handle the unwrapped constructor. *)
+(* Program Fixpoint busyFetch'' (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat) *)
+(*   {measure k} *)
+(*   : (State (Store unit nat V) V) := *)
+(*   match tasks k with *)
+(*   | Nothing   => gets (getValue k) *)
+(*   | Just task => *)
+(*     (run task) *)
+(*     (fun n => busyFetch'' V tasks (proj1_sig n)) *)
+(*     >>= *)
+(*     (fun v => modify (putValue k v) >> pure v) *)
+(*   end. *)
 
 Definition busy (V : Type) (tasks : AcyclicTasks Applicative V) (key : nat)
   (store : Store unit nat V) : Store unit nat V :=
