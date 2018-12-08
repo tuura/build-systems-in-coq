@@ -3,7 +3,7 @@ Require Import Data.Functor.
 Require Import Data.Functor.Identity.
 Require Import Control.Applicative.
 Require Import Control.Monad.
-Require Import Control.Monad.State.
+Require Import Control.Monad.StateInductive.
 Require Import Build.AcyclicTask.
 Require Import Build.Store.
 
@@ -52,17 +52,17 @@ Program Fixpoint busyFetch' (V : Type) (tasks : AcyclicTasks Applicative V) (k:n
   end.
 
 (* But for some reason, Coq can't handle the unwrapped constructor. *)
-(* Program Fixpoint busyFetch'' (V : Type) (tasks : AcyclicTasks Applicative V) (k:nat) *)
-(*   {measure k} *)
-(*   : (State (Store unit nat V) V) := *)
-(*   match tasks k with *)
-(*   | Nothing   => gets (getValue k) *)
-(*   | Just task => *)
-(*     (run task) *)
-(*     (fun n => busyFetch'' V tasks (proj1_sig n)) *)
-(*     >>= *)
-(*     (fun v => modify (putValue k v) >> pure v) *)
-(*   end. *)
+Program Fixpoint busyFetch'' (tasks : AcyclicTasks Applicative nat) (k:nat)
+  {measure k}
+  : (State (Store unit nat nat) nat) :=
+  match tasks k with
+  | Nothing   => gets (getValue k)
+  | Just task =>
+    (run task)
+    (fun n => busyFetch'' tasks (proj1_sig n))
+    >>=
+    (fun v => modify (putValue k v) >> pure v)
+  end.
 
 Definition busy (V : Type) (tasks : AcyclicTasks Applicative V) (key : nat)
   (store : Store unit nat V) : Store unit nat V :=
